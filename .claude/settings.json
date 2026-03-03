@@ -3,7 +3,8 @@
     "allow": [
       "Bash(node -c \"Super Picareta BP/scripts/main.js\")",
       "Bash(\"/c/Program Files/Python314/python.exe\" -c \":*)",
-      "WebFetch(domain:gildedbedrock.com)"
+      "WebFetch(domain:gildedbedrock.com)",
+      "Bash(node -c \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Super Picareta/Super Picareta BP/scripts/main.js\")"
     ]
   }
 }
