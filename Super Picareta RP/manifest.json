@@ -1,0 +1,23 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Super Picareta - Resources",
+        "description": "Texturas e visuais da Super Picareta.",
+        "uuid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "resources",
+            "uuid": "d4e5f6a7-b8c9-0123-defa-234567890123",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "version": [1, 0, 0]
+        }
+    ]
+}

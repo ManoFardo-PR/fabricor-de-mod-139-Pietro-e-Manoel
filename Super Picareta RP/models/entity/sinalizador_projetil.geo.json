@@ -1,0 +1,73 @@
+{
+    "format_version": "1.12.0",
+    "minecraft:geometry": [
+        {
+            "description": {
+                "identifier": "geometry.sinalizador_projetil",
+                "texture_width": 32,
+                "texture_height": 32,
+                "visible_bounds_width": 1,
+                "visible_bounds_height": 1,
+                "visible_bounds_offset": [0, 0.25, 0]
+            },
+            "bones": [
+                {
+                    "name": "root",
+                    "pivot": [0, 0, 0]
+                },
+                {
+                    "name": "ball_core",
+                    "parent": "root",
+                    "pivot": [0, 1, 0],
+                    "cubes": [
+                        {
+                            "origin": [-1, 0, -1],
+                            "size": [2, 2, 2],
+                            "uv": [0, 0]
+                        }
+                    ]
+                },
+                {
+                    "name": "ball_ring1",
+                    "parent": "root",
+                    "pivot": [0, 1, 0],
+                    "rotation": [0, 45, 0],
+                    "cubes": [
+                        {
+                            "origin": [-1, 0, -1],
+                            "size": [2, 2, 2],
+                            "uv": [0, 0]
+                        }
+                    ]
+                },
+                {
+                    "name": "ball_ring2",
+                    "parent": "root",
+                    "pivot": [0, 1, 0],
+                    "rotation": [45, 0, 0],
+                    "cubes": [
+                        {
+                            "origin": [-1, 0, -1],
+                            "size": [2, 2, 2],
+                            "uv": [0, 0]
+                        }
+                    ]
+                },
+                {
+                    "name": "glow_shell",
+                    "parent": "root",
+                    "pivot": [0, 1, 0],
+                    "rotation": [0, 22.5, 45],
+                    "cubes": [
+                        {
+                            "origin": [-1.5, -0.5, -1.5],
+                            "size": [3, 3, 3],
+                            "uv": [8, 0],
+                            "inflate": 0.25
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

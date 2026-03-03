@@ -1,0 +1,20 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:attachable": {
+        "description": {
+            "identifier": "escavadora:bomba_submarina",
+            "materials": {
+                "default": "entity_alphatest"
+            },
+            "textures": {
+                "default": "textures/entity/bomba_submarina"
+            },
+            "geometry": {
+                "default": "geometry.tnt_arremessavel"
+            },
+            "render_controllers": [
+                "controller.render.tnt_arremessavel"
+            ]
+        }
+    }
+}

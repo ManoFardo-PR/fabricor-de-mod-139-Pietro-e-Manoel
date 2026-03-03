@@ -1,0 +1,23 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "escavadora:bomba_submarina_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            " K ",
+            "LTL",
+            " K "
+        ],
+        "key": {
+            "T": { "item": "escavadora:tnt_arremessavel" },
+            "K": { "item": "minecraft:kelp" },
+            "L": { "item": "minecraft:lapis_lazuli" }
+        },
+        "result": {
+            "item": "escavadora:bomba_submarina",
+            "count": 2
+        }
+    }
+}

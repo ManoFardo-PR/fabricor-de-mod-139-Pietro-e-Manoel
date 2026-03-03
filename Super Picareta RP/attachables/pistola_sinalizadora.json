@@ -1,0 +1,20 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:attachable": {
+        "description": {
+            "identifier": "escavadora:pistola_sinalizadora",
+            "materials": {
+                "default": "entity_alphatest"
+            },
+            "textures": {
+                "default": "textures/entity/pistola_sinalizadora"
+            },
+            "geometry": {
+                "default": "geometry.pistola_sinalizadora"
+            },
+            "render_controllers": [
+                "controller.render.pistola_sinalizadora"
+            ]
+        }
+    }
+}

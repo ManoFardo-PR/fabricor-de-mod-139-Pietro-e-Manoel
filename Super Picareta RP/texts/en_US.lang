@@ -1,0 +1,8 @@
+item.escavadora:super_picareta.name=Super Pickaxe
+item.escavadora:tnt_arremessavel.name=Throwable TNT
+entity.escavadora:tnt_arremessavel.name=Throwable TNT
+item.escavadora:bomba_submarina.name=Submarine Bomb
+entity.escavadora:bomba_submarina.name=Submarine Bomb
+item.escavadora:pistola_sinalizadora.name=Flare Gun
+entity.escavadora:sinalizador_projetil.name=Flare
+item.escavadora:espada_de_fogo.name=Fire Sword

@@ -1,0 +1,23 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "escavadora:pistola_sinalizadora_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            " R ",
+            "BWL"
+        ],
+        "key": {
+            "R": { "item": "minecraft:redstone" },
+            "W": { "item": "minecraft:oak_planks" },
+            "L": { "item": "minecraft:lava_bucket" },
+            "B": { "item": "minecraft:bread" }
+        },
+        "result": {
+            "item": "escavadora:pistola_sinalizadora",
+            "count": 1
+        }
+    }
+}
