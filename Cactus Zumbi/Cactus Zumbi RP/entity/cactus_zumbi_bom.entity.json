@@ -1,0 +1,32 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:client_entity": {
+        "description": {
+            "identifier": "cactus_zumbi:cactus_zumbi_bom",
+            "materials": {
+                "default": "entity_alphatest"
+            },
+            "textures": {
+                "default": "textures/entity/cactus_zumbi_bom"
+            },
+            "geometry": {
+                "default": "geometry.cactus_zumbi"
+            },
+            "render_controllers": [
+                "controller.render.cactus_zumbi"
+            ],
+            "animations": {
+                "idle": "animation.cactus_zumbi.idle",
+                "walk": "animation.cactus_zumbi.walk",
+                "attack": "animation.cactus_zumbi.attack"
+            },
+            "scripts": {
+                "animate": [
+                    "idle",
+                    { "walk": "query.is_moving" },
+                    { "attack": "query.is_delayed_attacking" }
+                ]
+            }
+        }
+    }
+}

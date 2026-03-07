@@ -1,0 +1,4 @@
+item.cactus_zumbi:pocao_cactus.name=Zombie Cactus Potion
+entity.cactus_zumbi:pocao_projetil.name=Cactus Potion
+entity.cactus_zumbi:cactus_zumbi_bom.name=Good Zombie Cactus
+entity.cactus_zumbi:cactus_zumbi_mau.name=Evil Zombie Cactus

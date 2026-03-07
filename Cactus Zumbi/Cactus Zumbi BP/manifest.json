@@ -1,0 +1,29 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Cactus Zumbi - Behavior",
+        "description": "Pocao arremessavel que transforma cactus em Cactus Zumbi! Com flor = aliado, sem flor = inimigo.",
+        "uuid": "e1a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "script",
+            "language": "javascript",
+            "uuid": "f2b3c4d5-e6f7-a8b9-c0d1-e2f3a4b5c6d7",
+            "entry": "scripts/main.js",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "module_name": "@minecraft/server",
+            "version": "1.12.0"
+        },
+        {
+            "uuid": "a3b4c5d6-e7f8-a9b0-c1d2-e3f4a5b6c7d8",
+            "version": [1, 0, 0]
+        }
+    ]
+}

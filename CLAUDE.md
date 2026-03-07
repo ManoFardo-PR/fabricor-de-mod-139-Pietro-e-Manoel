@@ -49,6 +49,17 @@ NomeDoAddon/
 - Constantes de configuracao no topo do arquivo em objeto `CONFIG`
 - Comentarios em portugues com headers de secao `// ====`
 
+## Fluxo de Criacao de Entidade
+Para criar uma nova entidade/mob, seguir este fluxo obrigatorio:
+```
+/planejar-entidade [nome] [descricao] → usuario aprova plano → /criar-mob → /comportamento-mob → /revisar-mod → /varredura-bugs
+```
+1. **Planejar**: `/planejar-entidade` gera checklist completo de componentes, arquivos e comportamentos
+2. **Criar**: `/criar-mob` implementa os arquivos seguindo o plano aprovado
+3. **Comportamento**: `/comportamento-mob` adiciona AI e comportamentos customizados
+4. **Revisar**: `/revisar-mod` valida integridade do addon
+5. **Bugs**: `/varredura-bugs` encontra e corrige problemas
+
 ## Padroes de Entidade (BP - server-side)
 - `runtime_identifier`: usar entidade vanilla similar (ex: `minecraft:snowball` para projeteis)
 - Componentes comuns: `minecraft:collision_box`, `minecraft:projectile`, `minecraft:physics`
