@@ -81,7 +81,7 @@ function getOrCreateState(player) {
 //  LOOP PRINCIPAL - a cada 4 ticks
 //  Partículas, veneno, saltos progressivos
 // ============================================================
-system.runInterval(() => {
+const loopPrincipal = system.runInterval(() => {
     for (const player of world.getAllPlayers()) {
         const pieces = countSlimePieces(player);
 
@@ -103,14 +103,14 @@ system.runInterval(() => {
                     z: loc.z + (Math.random() - 0.5) * 1.5
                 });
             }
-        } catch (e) {}
+        } catch (e) { console.warn("[SlimeArmor] Erro ao spawnar particulas:", e); }
 
         // --- 2+ PEÇAS: Resistência a veneno ---
         if (pieces >= 2) {
             try {
                 const poison = player.getEffect("poison");
                 if (poison) player.removeEffect("poison");
-            } catch (e) {}
+            } catch (e) { console.warn("[SlimeArmor] Erro ao remover veneno:", e); }
         }
 
         // --- 4 PEÇAS (SET COMPLETO): Saltos progressivos ao correr ---
@@ -141,7 +141,7 @@ system.runInterval(() => {
                     } else {
                         dim.playSound("mob.slime.small", loc);
                     }
-                } catch (e) {}
+                } catch (e) { console.warn("[SlimeArmor] Erro no salto:", e); }
             }
         } else {
             // Reset quando para de correr
@@ -155,7 +155,7 @@ system.runInterval(() => {
 //  PROTEÇÃO CONTRA QUEDA - a cada 2 ticks
 //  Detecta queda, aplica resistência, e super quique
 // ============================================================
-system.runInterval(() => {
+const loopQueda = system.runInterval(() => {
     for (const player of world.getAllPlayers()) {
         const pieces = countSlimePieces(player);
         if (pieces < 2) continue;
@@ -189,7 +189,7 @@ system.runInterval(() => {
                     try {
                         player.applyKnockback(0, 0, 0, bounceForce);
                         player.dimension.playSound("mob.slime.big", player.location);
-                    } catch (e) {}
+                    } catch (e) { console.warn("[SlimeArmor] Erro no super quique:", e); }
                 });
             }
         }
@@ -201,7 +201,7 @@ system.runInterval(() => {
                     amplifier: CONFIG.fallResistanceAmplifier,
                     showParticles: false
                 });
-            } catch (e) {}
+            } catch (e) { console.warn("[SlimeArmor] Erro ao aplicar resistencia:", e); }
         }
     }
 }, 2);
@@ -237,7 +237,7 @@ world.afterEvents.entityHitEntity.subscribe((event) => {
             CONFIG.repulsionForce,
             CONFIG.repulsionUpward
         );
-    } catch (e) {}
+    } catch (e) { console.warn("[SlimeArmor] Erro na repulsao:", e); }
 
     // Atacante fica lento - grudou no slime!
     try {
@@ -245,12 +245,12 @@ world.afterEvents.entityHitEntity.subscribe((event) => {
             amplifier: CONFIG.slownessAmplifier,
             showParticles: true
         });
-    } catch (e) {}
+    } catch (e) { console.warn("[SlimeArmor] Erro ao aplicar lentidao:", e); }
 
     // Som de slime no impacto
     try {
         target.dimension.playSound("mob.slime.big", target.location);
-    } catch (e) {}
+    } catch (e) { console.warn("[SlimeArmor] Erro ao tocar som:", e); }
 });
 
 // ============================================================

@@ -3,20 +3,20 @@
     "header": {
         "name": "Armadura de Slime - Resources",
         "description": "Texturas e visuais da Armadura de Slime.",
-        "uuid": "c4d5e6f7-a8b9-0123-cdef-234567890123",
+        "uuid": "854d8b5b-6d3b-4ad7-86e5-ef7184e1117a",
         "version": [1, 0, 0],
-        "min_engine_version": [1, 21, 0]
+        "min_engine_version": [1, 21, 30]
     },
     "modules": [
         {
             "type": "resources",
-            "uuid": "d5e6f7a8-b9c0-1234-defa-345678901234",
+            "uuid": "90fc68dd-56f4-4bd7-9193-f738a9114bad",
             "version": [1, 0, 0]
         }
     ],
     "dependencies": [
         {
-            "uuid": "a2b3c4d5-e6f7-8901-abcd-ef2345678901",
+            "uuid": "71f5993c-d8bd-4780-b579-26c46372af48",
             "version": [1, 0, 0]
         }
     ]

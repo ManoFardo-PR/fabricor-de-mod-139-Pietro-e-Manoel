@@ -453,6 +453,45 @@ const FLARE_CONFIG = {
 
 const flightFlares = new Map();
 const landedFlares = new Map();
+const pendingLightRemovals = [];
+const MAX_LIGHT_REMOVAL_RETRIES = 600;
+
+// ====  Enfileira remocao de luz para retry garantido  ====
+function queueLightRemoval(dimId, pos) {
+    if (!pos) return;
+    pendingLightRemovals.push({
+        dimId: dimId,
+        pos: { x: pos.x, y: pos.y, z: pos.z },
+        retries: 0
+    });
+}
+
+// ====  Processa fila de remocao de luzes pendentes  ====
+function processPendingLightRemovals() {
+    for (let i = pendingLightRemovals.length - 1; i >= 0; i--) {
+        const entry = pendingLightRemovals[i];
+        try {
+            const dim = world.getDimension(entry.dimId);
+            if (removeSingleLight(dim, entry.pos)) {
+                pendingLightRemovals.splice(i, 1);
+            } else {
+                entry.retries++;
+                if (entry.retries > MAX_LIGHT_REMOVAL_RETRIES) {
+                    try {
+                        const block = dim.getBlock(entry.pos);
+                        if (block) block.setType("minecraft:air");
+                    } catch (e) {}
+                    pendingLightRemovals.splice(i, 1);
+                }
+            }
+        } catch (e) {
+            entry.retries++;
+            if (entry.retries > MAX_LIGHT_REMOVAL_RETRIES) {
+                pendingLightRemovals.splice(i, 1);
+            }
+        }
+    }
+}
 
 function placeSingleLight(dimension, loc) {
     const x = Math.floor(loc.x), y = Math.floor(loc.y), z = Math.floor(loc.z);
@@ -631,10 +670,7 @@ function flareLand(dimension, loc, halfDuration) {
         }
         if (oldestKey) {
             const old = landedFlares.get(oldestKey);
-            try {
-                const oldDim = world.getDimension(old.dimId);
-                removeSingleLight(oldDim, old.lightPos);
-            } catch (e) {}
+            queueLightRemoval(old.dimId, old.lightPos);
             landedFlares.delete(oldestKey);
         }
     }
@@ -683,7 +719,7 @@ world.afterEvents.projectileHitBlock.subscribe((event) => {
     const data = flightFlares.get(projId);
     if (data) {
         bounceCount = data.bounceCount;
-        removeSingleLight(dim, data.lightPos);
+        queueLightRemoval(dimNameStr, data.lightPos);
     }
 
     try { event.projectile.remove(); } catch (e) {}
@@ -753,7 +789,8 @@ world.afterEvents.projectileHitEntity.subscribe((event) => {
 
     const hitData = flightFlares.get(projId);
     if (hitData) {
-        removeSingleLight(dim, hitData.lightPos);
+        const rawId = dim.id.replace("minecraft:", "");
+        queueLightRemoval(rawId, hitData.lightPos);
     }
 
     try { event.projectile.remove(); } catch (e) {}
@@ -801,10 +838,7 @@ function updateFlightFlares(now, flareEntitiesMap) {
         }
 
         if (!found || (now - data.spawnTick > FLARE_CONFIG.flightTimeout)) {
-            try {
-                const cleanDim = world.getDimension(data.dimName || "overworld");
-                removeSingleLight(cleanDim, data.lightPos);
-            } catch (e) {}
+            queueLightRemoval(data.dimName || "overworld", data.lightPos);
             flightFlares.delete(id);
         }
     }
@@ -829,10 +863,8 @@ function updateLandedFlares(now) {
             }
 
             if (age > maxDuration) {
-                const removed = removeSingleLight(dim, data.lightPos);
-                if (removed || age > maxDuration + 400) {
-                    landedFlares.delete(key);
-                }
+                queueLightRemoval(data.dimId, data.lightPos);
+                landedFlares.delete(key);
             }
         } catch (e) {}
     }
@@ -864,6 +896,7 @@ system.runInterval(() => {
 
     updateFlightFlares(now, flareEntitiesMap);
     updateLandedFlares(now);
+    processPendingLightRemovals();
 }, 2);
 
 // ============================================================

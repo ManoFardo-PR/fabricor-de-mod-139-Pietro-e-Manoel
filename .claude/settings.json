@@ -7,7 +7,10 @@
       "Bash(node -c \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Super Picareta/Super Picareta BP/scripts/main.js\")",
       "WebFetch(domain:maxleiter.com)",
       "WebFetch(domain:github.com)",
-      "Bash(powershell -Command \":*)"
+      "Bash(powershell -Command \":*)",
+      "Bash(node --check \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Armadura de Slime/Armadura de Slime BP/scripts/main.js\")",
+      "Bash(node -e \"const c=require\\(''crypto''\\); for\\(let i=0;i<4;i++\\) console.log\\(c.randomUUID\\(\\)\\)\")",
+      "Bash(node -e \":*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\mfard\\OneDrive\\AmbVir\\Pietro\\fabricor de mod 139 Pietro e Manoel\\.claude\\skills",
