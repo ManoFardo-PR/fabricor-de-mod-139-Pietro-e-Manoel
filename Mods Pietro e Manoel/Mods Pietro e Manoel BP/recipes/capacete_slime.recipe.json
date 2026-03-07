@@ -1,0 +1,20 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "slime_armor:capacete_slime_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "SSS",
+            "S S"
+        ],
+        "key": {
+            "S": { "item": "minecraft:slime_ball" }
+        },
+        "result": {
+            "item": "slime_armor:capacete_slime",
+            "count": 1
+        }
+    }
+}

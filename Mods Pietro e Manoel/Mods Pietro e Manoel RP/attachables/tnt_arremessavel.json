@@ -1,0 +1,20 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:attachable": {
+        "description": {
+            "identifier": "escavadora:tnt_arremessavel",
+            "materials": {
+                "default": "entity_alphatest"
+            },
+            "textures": {
+                "default": "textures/entity/tnt_arremessavel"
+            },
+            "geometry": {
+                "default": "geometry.tnt_arremessavel"
+            },
+            "render_controllers": [
+                "controller.render.tnt_arremessavel"
+            ]
+        }
+    }
+}

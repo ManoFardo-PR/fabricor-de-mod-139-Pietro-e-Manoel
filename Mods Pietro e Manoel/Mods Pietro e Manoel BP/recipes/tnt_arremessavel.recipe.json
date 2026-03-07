@@ -1,0 +1,20 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "escavadora:tnt_arremessavel_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "TR"
+        ],
+        "key": {
+            "T": { "item": "minecraft:tnt" },
+            "R": { "item": "minecraft:redstone" }
+        },
+        "result": {
+            "item": "escavadora:tnt_arremessavel",
+            "count": 4
+        }
+    }
+}

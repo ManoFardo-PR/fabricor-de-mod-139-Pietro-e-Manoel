@@ -1,0 +1,21 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "slime_armor:calcas_slime_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "SSS",
+            "S S",
+            "S S"
+        ],
+        "key": {
+            "S": { "item": "minecraft:slime_ball" }
+        },
+        "result": {
+            "item": "slime_armor:calcas_slime",
+            "count": 1
+        }
+    }
+}

@@ -1,0 +1,29 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Mods Pietro e Manoel",
+        "description": "Todos os mods do Pietro e Manoel em um pack.",
+        "uuid": "aa11bb22-cc33-dd44-ee55-ff6677889900",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "script",
+            "language": "javascript",
+            "uuid": "bb22cc33-dd44-ee55-ff66-778899001122",
+            "version": [1, 0, 0],
+            "entry": "scripts/main.js"
+        }
+    ],
+    "dependencies": [
+        {
+            "uuid": "cc33dd44-ee55-ff66-7788-990011223344",
+            "version": [1, 0, 0]
+        },
+        {
+            "module_name": "@minecraft/server",
+            "version": "1.12.0"
+        }
+    ]
+}

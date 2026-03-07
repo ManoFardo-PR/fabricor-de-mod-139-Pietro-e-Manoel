@@ -1,0 +1,18 @@
+{
+    "resource_pack_name": "Armadura de Slime",
+    "texture_name": "atlas.items",
+    "texture_data": {
+        "capacete_slime": {
+            "textures": "textures/items/capacete_slime"
+        },
+        "peitoral_slime": {
+            "textures": "textures/items/peitoral_slime"
+        },
+        "calcas_slime": {
+            "textures": "textures/items/calcas_slime"
+        },
+        "botas_slime": {
+            "textures": "textures/items/botas_slime"
+        }
+    }
+}

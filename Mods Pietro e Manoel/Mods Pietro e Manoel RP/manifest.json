@@ -1,0 +1,23 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Mods Pietro e Manoel - Resources",
+        "description": "Texturas e visuais dos mods.",
+        "uuid": "cc33dd44-ee55-ff66-7788-990011223344",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "resources",
+            "uuid": "dd44ee55-ff66-7788-9900-112233445566",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "uuid": "aa11bb22-cc33-dd44-ee55-ff6677889900",
+            "version": [1, 0, 0]
+        }
+    ]
+}

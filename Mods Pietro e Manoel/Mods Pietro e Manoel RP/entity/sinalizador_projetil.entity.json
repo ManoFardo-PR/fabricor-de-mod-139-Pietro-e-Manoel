@@ -1,0 +1,28 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:client_entity": {
+        "description": {
+            "identifier": "escavadora:sinalizador_projetil",
+            "materials": {
+                "default": "entity_emissive_alpha"
+            },
+            "textures": {
+                "default": "textures/entity/sinalizador_projetil"
+            },
+            "geometry": {
+                "default": "geometry.sinalizador_projetil"
+            },
+            "render_controllers": [
+                "controller.render.sinalizador_projetil"
+            ],
+            "animations": {
+                "pulse": "animation.sinalizador_projetil.pulse"
+            },
+            "scripts": {
+                "animate": [
+                    "pulse"
+                ]
+            }
+        }
+    }
+}

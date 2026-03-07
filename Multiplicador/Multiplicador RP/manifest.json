@@ -1,0 +1,23 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Multiplicador - Resources",
+        "description": "Texturas e visuais do Multiplicador.",
+        "uuid": "f3c4d5e6-a7b8-9012-cdef-333333333333",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "resources",
+            "uuid": "f4d5e6a7-b8c9-0123-defa-444444444444",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "uuid": "f1a2b3c4-d5e6-7890-abcd-111111111111",
+            "version": [1, 0, 0]
+        }
+    ]
+}

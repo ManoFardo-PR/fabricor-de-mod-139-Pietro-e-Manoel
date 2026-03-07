@@ -1,0 +1,31 @@
+{
+    "format_version": "1.21.10",
+    "minecraft:item": {
+        "description": {
+            "identifier": "escavadora:pistola_sinalizadora",
+            "menu_category": {
+                "category": "items",
+                "group": "itemGroup.name.arrow"
+            }
+        },
+        "components": {
+            "minecraft:max_stack_size": 16,
+            "minecraft:throwable": {
+                "do_swing_animation": true,
+                "launch_power_scale": 1.0,
+                "max_launch_power": 1.0
+            },
+            "minecraft:projectile": {
+                "projectile_entity": "escavadora:sinalizador_projetil"
+            },
+            "minecraft:icon": {
+                "textures": {
+                    "default": "pistola_sinalizadora"
+                }
+            },
+            "minecraft:display_name": {
+                "value": "item.escavadora:pistola_sinalizadora.name"
+            }
+        }
+    }
+}

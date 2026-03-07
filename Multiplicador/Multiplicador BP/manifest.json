@@ -1,0 +1,29 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Multiplicador - Behavior",
+        "description": "Bloco multiplicador: 1 item + 10 diamantes = 10 copias!",
+        "uuid": "f1a2b3c4-d5e6-7890-abcd-111111111111",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "script",
+            "language": "javascript",
+            "uuid": "f2b3c4d5-e6a7-8901-bcde-222222222222",
+            "entry": "scripts/main.js",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "module_name": "@minecraft/server",
+            "version": "1.12.0"
+        },
+        {
+            "uuid": "f3c4d5e6-a7b8-9012-cdef-333333333333",
+            "version": [1, 0, 0]
+        }
+    ]
+}

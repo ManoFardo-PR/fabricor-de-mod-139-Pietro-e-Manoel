@@ -1,0 +1,22 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "escavadora:espada_de_fogo_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "M",
+            "M",
+            "S"
+        ],
+        "key": {
+            "M": { "item": "minecraft:magma" },
+            "S": { "item": "minecraft:stick" }
+        },
+        "result": {
+            "item": "escavadora:espada_de_fogo",
+            "count": 1
+        }
+    }
+}

@@ -1,0 +1,33 @@
+{
+    "resource_pack_name": "Mods Pietro e Manoel",
+    "texture_name": "atlas.items",
+    "texture_data": {
+        "super_picareta": {
+            "textures": "textures/items/super_picareta"
+        },
+        "tnt_arremessavel": {
+            "textures": "textures/items/tnt_arremessavel"
+        },
+        "bomba_submarina": {
+            "textures": "textures/items/bomba_submarina"
+        },
+        "pistola_sinalizadora": {
+            "textures": "textures/items/pistola_sinalizadora"
+        },
+        "espada_de_fogo": {
+            "textures": "textures/items/espada_de_fogo"
+        },
+        "capacete_slime": {
+            "textures": "textures/items/capacete_slime"
+        },
+        "peitoral_slime": {
+            "textures": "textures/items/peitoral_slime"
+        },
+        "calcas_slime": {
+            "textures": "textures/items/calcas_slime"
+        },
+        "botas_slime": {
+            "textures": "textures/items/botas_slime"
+        }
+    }
+}

@@ -1,0 +1,29 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Armadura de Slime - Behavior",
+        "description": "Armadura completa de slime com efeitos de repulsão, saltos e quique!",
+        "uuid": "a2b3c4d5-e6f7-8901-abcd-ef2345678901",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "script",
+            "language": "javascript",
+            "uuid": "b3c4d5e6-f7a8-9012-bcde-f23456789012",
+            "entry": "scripts/main.js",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "module_name": "@minecraft/server",
+            "version": "1.12.0"
+        },
+        {
+            "uuid": "c4d5e6f7-a8b9-0123-cdef-234567890123",
+            "version": [1, 0, 0]
+        }
+    ]
+}

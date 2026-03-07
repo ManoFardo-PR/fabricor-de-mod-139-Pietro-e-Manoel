@@ -1,0 +1,12 @@
+# Claude Code
+.claude/settings.local.json
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# OS
+.DS_Store
+
+# Node
+node_modules/

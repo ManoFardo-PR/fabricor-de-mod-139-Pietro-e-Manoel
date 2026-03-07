@@ -1,0 +1,13 @@
+item.escavadora:super_picareta.name=Super Picareta
+item.escavadora:tnt_arremessavel.name=TNT Arremessavel
+entity.escavadora:tnt_arremessavel.name=TNT Arremessavel
+item.escavadora:bomba_submarina.name=Bomba Submarina
+entity.escavadora:bomba_submarina.name=Bomba Submarina
+item.escavadora:pistola_sinalizadora.name=Pistola Sinalizadora
+entity.escavadora:sinalizador_projetil.name=Sinalizador
+item.escavadora:espada_de_fogo.name=Espada de Fogo
+tile.multiplicador:multiplicador_x10.name=Multiplicador x10
+item.slime_armor:capacete_slime.name=Capacete de Slime
+item.slime_armor:peitoral_slime.name=Peitoral de Slime
+item.slime_armor:calcas_slime.name=Calças de Slime
+item.slime_armor:botas_slime.name=Botas de Slime

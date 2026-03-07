@@ -4,7 +4,28 @@
       "Bash(node -c \"Super Picareta BP/scripts/main.js\")",
       "Bash(\"/c/Program Files/Python314/python.exe\" -c \":*)",
       "WebFetch(domain:gildedbedrock.com)",
-      "Bash(node -c \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Super Picareta/Super Picareta BP/scripts/main.js\")"
+      "Bash(node -c \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Super Picareta/Super Picareta BP/scripts/main.js\")",
+      "WebFetch(domain:maxleiter.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(powershell -Command \":*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\mfard\\OneDrive\\AmbVir\\Pietro\\fabricor de mod 139 Pietro e Manoel\\.claude\\skills",
+      "\\tmp",
+      "c:\\Users\\mfard\\OneDrive\\AmbVir\\Pietro\\fabricor de mod 139 Pietro e Manoel\\.claude"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'FILE=$(echo \"$TOOL_INPUT\" | node -e \"const d=require(\\\"fs\\\").readFileSync(0,\\\"utf8\\\");try{console.log(JSON.parse(d).file_path||\\\"\\\")}catch{console.log(\\\"\\\")}\" 2>/dev/null); if [ -n \"$FILE\" ]; then EXT=\"${FILE##*.}\"; if [ \"$EXT\" = \"json\" ]; then node -e \"try{JSON.parse(require(\\\"fs\\\").readFileSync(process.argv[1],\\\"utf8\\\"));console.log(\\\"JSON valido: \\\"+process.argv[1])}catch(e){console.error(\\\"ERRO JSON: \\\"+e.message);process.exit(1)}\" \"$FILE\" 2>&1; elif [ \"$EXT\" = \"js\" ]; then node --check \"$FILE\" 2>&1 && echo \"JS sintaxe OK: $FILE\" || echo \"ERRO JS sintaxe: $FILE\"; fi; fi'"
+          }
+        ]
+      }
     ]
   }
 }

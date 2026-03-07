@@ -1,0 +1,23 @@
+{
+    "format_version": "1.21.10",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "multiplicador:multiplicador_x10"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "DOD",
+            "OCO",
+            "DOD"
+        ],
+        "key": {
+            "D": { "item": "minecraft:diamond" },
+            "O": { "item": "minecraft:obsidian" },
+            "C": { "item": "minecraft:chest" }
+        },
+        "result": {
+            "item": "multiplicador:multiplicador_x10",
+            "count": 1
+        }
+    }
+}

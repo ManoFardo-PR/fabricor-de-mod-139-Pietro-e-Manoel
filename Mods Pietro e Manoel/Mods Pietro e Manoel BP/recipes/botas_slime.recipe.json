@@ -1,0 +1,20 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "slime_armor:botas_slime_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "S S",
+            "S S"
+        ],
+        "key": {
+            "S": { "item": "minecraft:slime_ball" }
+        },
+        "result": {
+            "item": "slime_armor:botas_slime",
+            "count": 1
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "resource_pack_name": "Mods Pietro e Manoel",
+    "texture_name": "atlas.terrain",
+    "texture_data": {
+        "multiplicador_x10_top": {
+            "textures": "textures/blocks/multiplicador_x10_top"
+        },
+        "multiplicador_x10_side": {
+            "textures": "textures/blocks/multiplicador_x10_side"
+        },
+        "multiplicador_x10_front": {
+            "textures": "textures/blocks/multiplicador_x10_front"
+        }
+    }
+}

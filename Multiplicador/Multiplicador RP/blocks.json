@@ -1,0 +1,6 @@
+{
+    "multiplicador:multiplicador_x10": {
+        "sound": "stone",
+        "textures": "multiplicador_x10_side"
+    }
+}
