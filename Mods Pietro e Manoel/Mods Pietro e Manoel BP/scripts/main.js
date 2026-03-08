@@ -1392,6 +1392,7 @@ world.afterEvents.entityHitEntity.subscribe((event) => {
     const target = event.damagedEntity;
     const attacker = event.damagingEntity;
 
+    if (!target || !attacker) return;
     if (target.typeId !== "minecraft:player") return;
 
     const pieces = countSlimePieces(target);
