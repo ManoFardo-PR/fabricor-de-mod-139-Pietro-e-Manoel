@@ -10,6 +10,11 @@ argument-hint: "[nome-do-addon]"
 
 Revise o addon especificado em $ARGUMENTS seguindo esta checklist completa.
 
+> **Pre-requisito:** para validacao profunda de integridade BP/RP, paridade de packs
+> unificados, uso de DynamicProperties em scripts e organizacao de namespaces, aplicar
+> tambem a skill `integridade-projeto` (`.claude/skills/integridade-projeto/SKILL.md`).
+> Esta skill cobre apenas a validacao **por addon individual**.
+
 ## Checklist de Validacao
 
 ### 1. Manifests
@@ -78,6 +83,26 @@ Se existir `scripts/main.js`:
 - [ ] Cada animacao referenciada existe
 - [ ] Cada render controller referenciado existe
 - [ ] Nomes correspondem (controller.render.[nome])
+- [ ] `controller.render.default` **nao** e usado (nao existe vanilla); usar `controller.render.item_default`, `controller.render.armor` ou criar o seu
+
+### 11. Attachables (RP) - para itens wearable ou segurados em 3D
+Para cada `<Addon> RP/attachables/*.json`:
+- [ ] `identifier` e identico ao identifier do item correspondente no BP
+- [ ] `materials.default` valido (`armor`, `armor_enchanted`, `entity`, `entity_alphatest`)
+- [ ] `textures.default` aponta para PNG existente em `textures/models/armor/` ou `textures/entity/`
+- [ ] `geometry.default` resolve (vanilla `geometry.humanoid.armor.helmet` etc., ou customizada presente em `models/entity/`)
+- [ ] Render controller referenciado existe (vanilla ou local)
+
+### 12. Paridade com pack unificado (se aplicavel)
+Se existir pack consolidado no projeto:
+- [ ] Todos os arquivos deste addon estao replicados no pack unificado
+- [ ] Aplicar Protocolo 1 da skill `integridade-projeto` para validacao completa
+
+### 13. Scripts - estado persistente
+Se `scripts/main.js` coloca blocos no mundo (light_block, fire, marcadores) ou rastreia entidades de longa vida:
+- [ ] Estado salvo em `world.setDynamicProperty` (nao apenas em `Map` em memoria)
+- [ ] Listener em `worldLoad` reconcilia estado e limpa orfaos
+- [ ] Aplicar Protocolo 3 da skill `integridade-projeto`
 
 ## Output
 Gerar um relatorio com:
