@@ -1,262 +1,344 @@
-# Plano: Addon "Flechas Especiais"
+# Plano de Acao: Correcao de Integridade do Projeto
 
 ## Contexto
 
-Criar um novo addon Minecraft Bedrock contendo **4 flechas customizadas** — TNT, Veneno, Lerdeza e Paralisia — disparadas pelo **arco vanilla**, cada uma com efeitos únicos ao acertar bloco ou entidade. O addon segue os padrões do projeto (estrutura BP/RP, namespace snake_case, scripts API `@minecraft/server` v1.12.0, traduções pt-BR/en-US).
+A auditoria automatizada `node .claude/skills/integridade-projeto/auditar_paridade.mjs` identificou **75 bloqueios de paridade** entre o pack unificado `Mods Pietro e Manoel` e os 5 addons modulares, alem de **4 bugs comportamentais criticos** documentados na investigacao anterior. Este plano organiza as correcoes em ondas sequenciais, cada uma seguindo um protocolo da skill `integridade-projeto` e terminando com auditoria automatizada para garantir que nenhuma regressao foi introduzida.
 
-A complicação técnica central: o arco vanilla só aceita `minecraft:arrow` como munição. Portanto será necessário **interceptar o disparo** via scripts, spawnar a flecha customizada manualmente e suprimir a flecha vanilla.
+## Sumario dos problemas
 
-## Decisões aprovadas
+| ID | Sistema | Causa raiz | Severidade |
+|----|---------|-----------|-----------|
+| B1 | Pack unificado - Armadura de Slime | 4 attachables + 2 PNGs de modelo ausentes em `Mods Pietro e Manoel RP` | Alta |
+| B2 | Pack unificado - Pistola Laser | 40 arquivos ausentes (BP completo, RP completo, item_texture, lang) | Critica |
+| B3 | Pack unificado - Cactus Zumbi | 34 arquivos ausentes (mesmo padrao) | Critica |
+| B4 | Pistola Sinalizadora - luz persistente | `landedFlares = new Map()` sem espelhamento em DynamicProperty; chunks descarregados orfanam light_blocks | Alta |
+| B5 | Pistola Sinalizadora - quique excessivo | `FLARE_CONFIG.bounce.maxBounces: 2` + `velocityLoss: 0.3` + `minVertical: 0.1` | Media |
+| B6 | Rifle Sniper - zoom invisivel | `camera.setFov` dentro de `try/catch (e) {}` silencioso; impossivel saber se API falhou | Media |
+| B7 | Rifle Sniper - pan rapido | Limitacao da Bedrock Engine (sensibilidade nao escala com FOV); aceitar trade-off | Baixa |
 
-| Decisão | Escolha |
-|---|---|
-| Modo de disparo | **Arco vanilla** com interceptação por script |
-| Quantidade por receita | **8 flechas** |
-| Detecção de impacto | `world.afterEvents.projectileHitEntity` + `projectileHitBlock` |
-| Namespace | `flechas_especiais:` |
-| Idioma | pt-BR (en-US também incluído) |
+## Mapa de ondas
 
-## Estratégia técnica do disparo (Híbrida — validada)
+| Onda | Foco | Protocolos da skill `integridade-projeto` | Validacao final |
+|------|------|------------------------------------------|-----------------|
+| 0 | Fixes Mecanizaveis (acelerador opcional) | Aplica subsets dos Protocolos 1, 2 e 4 via script | `node corrigir-bugs.js` termina com 0 erros |
+| 1 | Sincronizacao de Assets | Protocolo 1 (Paridade) + Protocolo 4 (Referencias) | `auditar_paridade.mjs` retorna 0 bloqueios |
+| 2 | Correcao de Identificadores | Protocolo 2 (Consistencia BP/RP) + Protocolo 4 | Skill `revisar-mod` em cada addon |
+| 3 | Refatoracao de Scripts | Protocolo 3 (DynamicProperties) | Skill `varredura-bugs` no main.js |
+| 4 | Ajustes Comportamentais | Skills `revisar-mod` + `varredura-bugs` | Roteiro de teste in-game |
 
-1. **`world.afterEvents.itemReleaseUse`** detecta o disparo do arco vanilla. O evento entrega `source` (player), `itemStack` (verificar `minecraft:bow`) e `useDuration` (ticks segurando → calcula power).
-2. Buscar primeira flecha customizada no inventário (prioridade por slot). Se nenhuma, retorna.
-3. Calcular `power = min(useDuration/20, 1.0)`. Ignorar disparos com `power < 0.1`.
-4. **Spawnar flecha customizada** em `player.location + 1.5y` usando `dimension.spawnEntity()`, aplicar `applyImpulse(viewDirection * power * 3.0)` dentro de `system.run()`.
-5. Consumir 1 flecha customizada do inventário.
-6. Marcar player com `setDynamicProperty("flecha_custom:disparo_tick", system.currentTick)`.
-7. **`world.afterEvents.entitySpawn`**: se entidade é `minecraft:arrow` e há player próximo (raio 3) com flag setada neste tick → `entity.remove()` (suprime a flecha vanilla).
-8. **`system.runInterval(10)`**: enquanto player segura arco e tem flecha customizada mas não tem `minecraft:arrow`, inserir 1 arrow vanilla "fantasma" no inventário; remover quando trocar item ou pegar arrow real.
+Cada onda deve ser commitada separadamente para facilitar rollback.
 
-## Efeitos no impacto
+---
 
-Listeners `projectileHitEntity` / `projectileHitBlock` filtram por `event.projectile.typeId` e aplicam:
+## Onda 0 - Fixes Mecanizaveis (acelerador opcional)
 
-| Flecha | Identificador entidade | Efeito |
-|---|---|---|
-| TNT | `flechas_especiais:proj_tnt` | `dimension.createExplosion(loc, 3, { breaksBlocks: true, causesFire: false })` |
-| Veneno | `flechas_especiais:proj_veneno` | `addEffect("poison", 200, {amplifier:1})`, `addEffect("hunger", 160, {amplifier:0})`, `addEffect("nausea", 120)`, `addEffect("weakness", 200)` |
-| Lerdeza | `flechas_especiais:proj_lerdeza` | `addEffect("slowness", 160, {amplifier:3})`, `addEffect("mining_fatigue", 120, {amplifier:1})` |
-| Paralisia | `flechas_especiais:proj_paralisia` | `addEffect("slowness", 100, {amplifier:4})`, `addEffect("mining_fatigue", 100, {amplifier:4})`, `addEffect("blindness", 100)` |
+**Objetivo:** aplicar em batch os fixes 100% auto-corrigiveis (sem decisao de design) antes de iniciar a Onda 1, reduzindo trabalho manual nas ondas subsequentes.
 
-Particulas/sons no impacto: 
-- TNT → som vanilla pela explosion API
-- Veneno → `spawnParticle("minecraft:villager_angry", loc)` + som `mob.zombie.infect`
-- Lerdeza → `spawnParticle("minecraft:basic_smoke_particle", loc)`
-- Paralisia → `spawnParticle("minecraft:critical_hit_emitter", loc)` + som `random.orb`
+**Escopo:** 4 fixes mecanizaveis ja diagnosticados:
+1. **Slime parity** (subset da Onda 1A) - copiar 4 attachables + 2 PNGs de modelo
+2. **empty.json** (Onda 2C primeiro bullet) - criar arquivo nos 2 BPs
+3. **Render controller do Rifle** (subset da Onda 2A) - troca `controller.render.default` -> `controller.render.item_default` no `Pistola Laser RP/attachables/rifle_sniper.json`
+4. **Bounce tuning** (Onda 4A completa) - aplicar valores novos em `Super Picareta BP/scripts/main.js:452-454` e `Mods Pietro e Manoel BP/scripts/main.js:431-433`
 
-## Estrutura de arquivos a criar
+**Implementacao sugerida:** script `corrigir-bugs.js` na raiz do projeto, conforme plano detalhado em `vou-criar-um-script-snug-leaf.md` (ver tambem Apendice A). Caracteristicas obrigatorias:
+- Idempotente (rodar varias vezes nao tem efeito colateral - usar hash MD5 para comparar arquivos binarios)
+- `--dry-run` mostra o que faria sem escrever
+- `--no-backup` desativa criacao de `.bak` (padrao: criar backup)
+- `--apenas <fixN>` / `--pular <fixN>` para granularidade
+- `--strict` para no primeiro erro (padrao: continuar)
+- Zero dependencias externas (so `node:fs`, `node:path`, `node:crypto`)
+- Apos aplicar tudo, executa validacao automatica (`node --check` nos scripts editados + parse de JSONs alterados)
 
+**Importante:** Onda 0 NAO substitui as ondas seguintes - apenas resolve os 8 arquivos mecanizaveis. Ainda restam manuais:
+- Onda 1B/1C (Pistola Laser + Cactus Zumbi: 74 arquivos exigem decisao de merge de scripts)
+- Onda 2A demais attachables + Onda 2B (auditoria de identifiers BP<->RP)
+- Onda 3 (refatoracao arquitetural para DynamicProperty)
+- Onda 4B/4C (feedback de zoom + documentacao de limitacao do Bedrock)
+
+### Validacao da Onda 0
 ```
-Flechas Especiais/
-├── Flechas Especiais BP/
-│   ├── manifest.json                              (UUIDs novos, dep no RP, @minecraft/server 1.12.0)
-│   ├── pack_icon.png
-│   ├── scripts/main.js                            (LÓGICA COMPLETA — único arquivo de script)
-│   ├── items/
-│   │   ├── flecha_tnt.item.json                   (icon, display_name, max_stack 64, menu_category equipment/arrow)
-│   │   ├── flecha_veneno.item.json
-│   │   ├── flecha_lerdeza.item.json
-│   │   └── flecha_paralisia.item.json
-│   ├── entities/
-│   │   ├── proj_tnt.entity.json                   (runtime_identifier minecraft:arrow, projectile, collision_box 0.25x0.25, physics)
-│   │   ├── proj_veneno.entity.json
-│   │   ├── proj_lerdeza.entity.json
-│   │   └── proj_paralisia.entity.json
-│   └── recipes/
-│       ├── flecha_tnt.recipe.json                 (shaped, 1 arrow + 1 TNT → 8, formato vertical)
-│       ├── flecha_veneno.recipe.json              (1 arrow + 1 spider_eye + 1 fermented_spider_eye → 8)
-│       ├── flecha_lerdeza.recipe.json             (1 arrow + 1 packed_ice → 8)
-│       └── flecha_paralisia.recipe.json           (1 arrow + 1 redstone + 1 glowstone_dust → 8)
-└── Flechas Especiais RP/
-    ├── manifest.json                              (UUIDs novos, dep no BP)
-    ├── pack_icon.png
-    ├── entity/
-    │   ├── proj_tnt.entity.json                   (client_entity, material entity_alphatest, geometry simples)
-    │   ├── proj_veneno.entity.json
-    │   ├── proj_lerdeza.entity.json
-    │   └── proj_paralisia.entity.json
-    ├── textures/
-    │   ├── item_texture.json                      (mapeia 4 ícones)
-    │   ├── items/
-    │   │   ├── flecha_tnt.png                     (16x16, ponta vermelha+listras pretas)
-    │   │   ├── flecha_veneno.png                  (16x16, ponta verde escura)
-    │   │   ├── flecha_lerdeza.png                 (16x16, ponta azul claro)
-    │   │   └── flecha_paralisia.png               (16x16, ponta dourada)
-    │   └── entity/
-    │       ├── proj_tnt.png                       (textura da entidade em voo)
-    │       ├── proj_veneno.png
-    │       ├── proj_lerdeza.png
-    │       └── proj_paralisia.png
-    └── texts/
-        ├── languages.json                         (["en_US","pt_BR"])
-        ├── pt_BR.lang
-        └── en_US.lang
+# 1. Script de fix terminou com 0 erros
+node corrigir-bugs.js
+
+# 2. JSONs alterados continuam validos
+node --check "Super Picareta/Super Picareta BP/scripts/main.js"
+node --check "Mods Pietro e Manoel/Mods Pietro e Manoel BP/scripts/main.js"
+
+# 3. Paridade da Slime resolvida (deve ter sumido do relatorio)
+node .claude/skills/integridade-projeto/auditar_paridade.mjs
+# Esperado: bloqueios da Armadura de Slime caem de 6 para 0;
+# bloqueios totais caem de 75 para 69 (restam Pistola Laser + Cactus Zumbi).
 ```
 
-## Arquivos de referência do projeto (reutilizar padrões)
+---
 
-- [Pistola Laser BP/scripts/main.js](Pistola Laser/Pistola Laser BP/scripts/main.js) — padrão de `itemReleaseUse`, projétil customizado com `runtime_identifier: minecraft:arrow`, eventos de impacto, CONFIG estruturado.
-- [Pistola Laser BP/entities/laser_projetil.entity.json](Pistola Laser/Pistola Laser BP/entities/laser_projetil.entity.json) — template de entidade projétil com `minecraft:projectile`.
-- [Cactus Zumbi BP/items/pocao_cactus.item.json](Cactus Zumbi/Cactus Zumbi BP/items/pocao_cactus.item.json) — padrão de item arremessável (referência de receita e estrutura).
-- [Cactus Zumbi BP/recipes/pocao_cactus.recipe.json](Cactus Zumbi/Cactus Zumbi BP/recipes/pocao_cactus.recipe.json) — padrão de receita shaped.
-- [Cactus Zumbi RP/textures/item_texture.json](Cactus Zumbi/Cactus Zumbi RP/textures/item_texture.json) — padrão de mapeamento de textura de item.
-- [Cactus Zumbi RP/texts/pt_BR.lang](Cactus Zumbi/Cactus Zumbi RP/texts/pt_BR.lang) — padrão de tradução.
-- [CLAUDE.md](CLAUDE.md) — convenções gerais do projeto.
+## Onda 1 - Sincronizacao de Assets (resolve B1+B2+B3)
 
-## Esqueleto do `scripts/main.js`
+**Objetivo:** zerar os 75 bloqueios de paridade. Ao final desta onda, ativar apenas o pack unificado entrega os 5 mods completos.
 
-```javascript
-import { world, system, EquipmentSlot, ItemStack } from "@minecraft/server";
+**Protocolo aplicado:** Protocolo 1 (Paridade de Pacotes Unificados) - copia 1-para-1 de cada arquivo do addon modular para o unificado, preservando estrutura de pastas e identifiers.
 
-// ========== CONFIG ==========
-const CONFIG = {
-  propDisparo: "flechas_especiais:disparo_tick",
-  propAtirador: "flechas_especiais:atirador_id",
-  powerMinimo: 0.1,
-  velocidadeBase: 3.0,
-};
+### 1A. Armadura de Slime (6 arquivos)
+**Causa raiz:** quando o pack unificado foi consolidado, a etapa de copia de attachables e texturas de modelo da armadura foi omitida. O item BP esta presente e o icone funciona, mas o engine nao tem instrucao para renderizar a armadura no corpo do jogador.
 
-const MAPA_FLECHA_PROJETIL = {
-  "flechas_especiais:flecha_tnt":       "flechas_especiais:proj_tnt",
-  "flechas_especiais:flecha_veneno":    "flechas_especiais:proj_veneno",
-  "flechas_especiais:flecha_lerdeza":   "flechas_especiais:proj_lerdeza",
-  "flechas_especiais:flecha_paralisia": "flechas_especiais:proj_paralisia",
-};
+Copiar do modular para o unificado:
+- `Armadura de Slime RP/attachables/capacete_slime.json` -> `Mods Pietro e Manoel RP/attachables/`
+- `Armadura de Slime RP/attachables/peitoral_slime.json` -> idem
+- `Armadura de Slime RP/attachables/calcas_slime.json` -> idem
+- `Armadura de Slime RP/attachables/botas_slime.json` -> idem
+- `Armadura de Slime RP/textures/models/armor/slime_armor_1.png` -> `Mods Pietro e Manoel RP/textures/models/armor/`
+- `Armadura de Slime RP/textures/models/armor/slime_armor_2.png` -> idem
 
-const PRIORIDADE_FLECHA = Object.keys(MAPA_FLECHA_PROJETIL);
+**Estrategia de idempotencia:** para retomadas seguras (script abortado no meio, multipla execucao), comparar hash MD5 do arquivo origem com destino antes de copiar. Se identicos, pular. Esta logica e a base da Onda 0 e deve ser preservada em qualquer automacao futura de sincronizacao de packs.
 
-// ========== HELPERS ==========
-function primeiraFlechaCustomizada(player) { /* varre inventario, retorna {slot,typeId} */ }
-function consumirFlecha(player, typeId, qtd) { /* decrementa item no slot */ }
-function temArrowVanilla(player) { /* boolean */ }
-function garantirArrowFantasma(player) { /* inserir 1 minecraft:arrow temporaria */ }
+### 1B. Pistola Laser (40 arquivos)
+**Causa raiz:** addon nao foi incluido na consolidacao inicial; apenas 4 PNGs de icone foram copiados (orfaos sem definicao de item no BP).
 
-// ========== LOOP: arrow fantasma ==========
-system.runInterval(() => { /* iterar players com bow + flecha custom */ }, 10);
+Copiar todos os arquivos listados no relatorio do `auditar_paridade.mjs`, preservando estrutura:
+- BP: 4 items (`pistola_laser, rifle_sniper, municao_laser, municao_sniper`), 2 entities (`laser_projetil, sniper_projetil`), 4 recipes
+- RP: 1 attachable (`rifle_sniper.json` - 3D na mao), 2 client_entity, 2 models/entity, 1 render_controller, 1 animation, 8 PNGs (4 icones + 4 entidades)
+- Adicionar 4 chaves em `Mods Pietro e Manoel RP/textures/item_texture.json`: `pistola_laser`, `municao_laser`, `rifle_sniper`, `municao_sniper`
+- Adicionar 6 chaves em cada `texts/{pt_BR,en_US}.lang` do unificado
+- Concatenar logica de `Pistola Laser BP/scripts/main.js` no `Mods Pietro e Manoel BP/scripts/main.js` (Onda 3 trata script)
 
-// ========== DISPARO ==========
-world.afterEvents.itemReleaseUse.subscribe((ev) => {
-  if (ev.itemStack?.typeId !== "minecraft:bow") return;
-  const player = ev.source;
-  const flecha = primeiraFlechaCustomizada(player);
-  if (!flecha) return;
-  
-  const power = Math.min(ev.useDuration / 20, 1.0);
-  if (power < CONFIG.powerMinimo) return;
-  
-  const dir = player.getViewDirection();
-  const vel = CONFIG.velocidadeBase * power;
-  const pos = { x: player.location.x, y: player.location.y + 1.5, z: player.location.z };
-  const tipoProj = MAPA_FLECHA_PROJETIL[flecha.typeId];
-  
-  player.setDynamicProperty(CONFIG.propDisparo, system.currentTick);
-  
-  system.run(() => {
-    const proj = player.dimension.spawnEntity(tipoProj, pos);
-    proj.applyImpulse({ x: dir.x * vel, y: dir.y * vel, z: dir.z * vel });
-    proj.setDynamicProperty(CONFIG.propAtirador, player.id);
-  });
-  
-  consumirFlecha(player, flecha.typeId, 1);
-});
+### 1C. Cactus Zumbi (34 arquivos)
+**Causa raiz:** mesmo padrao de B2.
+- BP: 1 item (`pocao_cactus`), 3 entities (`cactus_zumbi_bom, cactus_zumbi_mau, pocao_projetil`), 1 recipe, 2 loot_tables
+- RP: 3 client_entity, 2 models/entity, 2 render_controllers, 2 animations, 4 PNGs
+- Adicionar chave `pocao_cactus` em `item_texture.json`
+- Adicionar 4 chaves em cada `texts/*.lang`
+- Concatenar logica de `Cactus Zumbi BP/scripts/main.js` no script unificado (Onda 3)
 
-// ========== SUPRESSAO DA ARROW VANILLA ==========
-world.afterEvents.entitySpawn.subscribe((ev) => {
-  const e = ev.entity;
-  if (e.typeId !== "minecraft:arrow") return;
-  const tickAgora = system.currentTick;
-  const players = e.dimension.getPlayers({ location: e.location, maxDistance: 3 });
-  for (const p of players) {
-    const t = p.getDynamicProperty(CONFIG.propDisparo);
-    if (t !== undefined && tickAgora - t <= 1) {
-      e.remove();
-      p.setDynamicProperty(CONFIG.propDisparo, undefined);
-      return;
-    }
-  }
-});
+### Validacao da Onda 1
+```
+node .claude/skills/integridade-projeto/auditar_paridade.mjs
+```
+**Criterio de aprovacao:** `TOTAL DE BLOQUEIOS: 0`. Caso contrario, identificar arquivo faltante na saida e completar antes de avancar para Onda 2.
 
-// ========== EFEITOS NO IMPACTO ==========
-world.afterEvents.projectileHitEntity.subscribe((ev) => {
-  const alvo = ev.getEntityHit()?.entity;
-  if (!alvo) return;
-  aplicarEfeito(ev.projectile.typeId, alvo, ev.location, ev.projectile.dimension);
-  ev.projectile.remove();
-});
+---
 
-world.afterEvents.projectileHitBlock.subscribe((ev) => {
-  const bloco = ev.getBlockHit()?.block;
-  if (!bloco) return;
-  aplicarEfeito(ev.projectile.typeId, null, bloco.location, ev.projectile.dimension);
-  ev.projectile.remove();
-});
+## Onda 2 - Correcao de Identificadores e Referencias (resolve bugs estruturais)
 
-function aplicarEfeito(tipoProj, alvo, loc, dim) {
-  switch (tipoProj) {
-    case "flechas_especiais:proj_tnt":
-      dim.createExplosion(loc, 3, { breaksBlocks: true, causesFire: false });
-      break;
-    case "flechas_especiais:proj_veneno":
-      if (alvo) {
-        alvo.addEffect("poison", 200, { amplifier: 1 });
-        alvo.addEffect("hunger", 160);
-        alvo.addEffect("nausea", 120);
-        alvo.addEffect("weakness", 200);
-      }
-      dim.spawnParticle("minecraft:villager_angry", loc);
-      break;
-    case "flechas_especiais:proj_lerdeza":
-      if (alvo) {
-        alvo.addEffect("slowness", 160, { amplifier: 3 });
-        alvo.addEffect("mining_fatigue", 120, { amplifier: 1 });
-      }
-      dim.spawnParticle("minecraft:basic_smoke_particle", loc);
-      break;
-    case "flechas_especiais:proj_paralisia":
-      if (alvo) {
-        alvo.addEffect("slowness", 100, { amplifier: 4 });
-        alvo.addEffect("mining_fatigue", 100, { amplifier: 4 });
-        alvo.addEffect("blindness", 100);
-      }
-      dim.spawnParticle("minecraft:critical_hit_emitter", loc);
-      dim.playSound("random.orb", loc);
-      break;
-  }
-}
+**Objetivo:** garantir que toda referencia em RP resolve em arquivo/identifier existente.
+
+**Protocolos aplicados:** Protocolo 2 (Consistencia BP <-> RP) e Protocolo 4 (Validacao de Referencias).
+
+### 2A. Auditar render_controllers de attachables
+Para cada `*/attachables/*.json` em todos os packs (modulares e unificado):
+- Se o array `render_controllers` contem `controller.render.default` (que **nao existe** vanilla), **substituir** por:
+  - `controller.render.armor` - para armaduras
+  - `controller.render.item_default` - para itens segurados em 3D (ex: rifle sniper)
+- Verificar particularmente o attachable do Rifle Sniper conforme observacao 4.2 do diagnostico anterior
+
+**Rationale - por que usar vanilla em vez de custom:** os attachables atuais (rifle sniper, armaduras) **nao tem variantes condicionais** de material/textura (sem multiplos `arrays.textures`, sem `Math.random` em material, sem geometrias alternativas por estado). Render controllers vanilla cobrem 100% das necessidades. Criar um `controller.render.rifle_sniper` custom adicionaria 1 arquivo por addon sem ganho funcional. Se no futuro um attachable precisar de logica condicional (ex: textura encantada), entao criar custom; ate la, vanilla e a escolha correta.
+
+### 2B. Auditar identifiers BP <-> RP
+Para cada addon, aplicar o mapa do Protocolo 2 da skill:
+
+| Origem | Destino | Verificar |
+|--------|---------|-----------|
+| `items/*.item.json` -> `identifier` | `attachables/*.json` -> `identifier` | identico |
+| `items/*.item.json` -> `minecraft:icon` | chave em `textures/item_texture.json` | identico |
+| `entities/*.entity.json` -> `identifier` | `entity/*.entity.json` -> `identifier` | identico |
+| client_entity -> `geometry.default` | `models/entity/*.geo.json` -> identifier | `geometry.<nome>` identico |
+| client_entity -> `render_controllers[]` | `render_controllers/*.json` -> chave | identico ou vanilla |
+
+Discrepancias devem ser corrigidas **no RP** (preservar identifier do BP como fonte de verdade).
+
+### 2C. Limpar referencias quebradas
+- `Multiplicador x10 BP` (e a copia no pack unificado) referencia `loot_tables/empty.json` que nao existe -> **criar o arquivo nos dois caminhos**:
+  - `Multiplicador x10/Multiplicador x10 BP/loot_tables/empty.json`
+  - `Mods Pietro e Manoel/Mods Pietro e Manoel BP/loot_tables/empty.json`
+  - Conteudo identico nos dois: `{ "pools": [] }`
+  - Alternativa equivalente: **remover** o componente `minecraft:loot` do bloco (a omissao tambem evita drop), mas exige editar 2 blocos. Criar o arquivo vazio e menor delta.
+- Apagar chaves em `item_texture.json` que apontam para PNGs inexistentes
+- Apos remover qualquer chave de `item_texture.json` no modular, repetir remocao no unificado para manter paridade
+
+### Validacao da Onda 2
+- `node .claude/skills/integridade-projeto/auditar_paridade.mjs` (continua 0 bloqueios)
+- Aplicar mentalmente a skill `revisar-mod` em cada addon, focando nos itens **10** (render controllers), **11** (attachables) e **13** (scripts persistentes)
+- No teste in-game, confirmar que o Content Log do Minecraft **nao** mostra warnings de `geometry not found`, `render controller not found` ou `texture not found`
+
+---
+
+## Onda 3 - Refatoracao de Scripts para DynamicProperties (resolve B4)
+
+**Objetivo:** aplicar Protocolo 3 (Ciclo de Vida de Scripts) ao codigo do FLARE para eliminar `light_block` orfaos persistentes no mundo apos reload.
+
+### 3A. Refatorar `Super Picareta BP/scripts/main.js`
+
+**Causa raiz:** as estruturas `landedFlares = new Map()` (linha 477) e `flightFlares = new Map()` (linha 476) sao estado puramente em memoria. Apos `/reload`, recarga de mundo ou crash, as luzes ativas no momento ficam orfas permanentes — o `light_block` segue colocado mas o script perdeu o tracking para remove-lo.
+
+Mudancas concretas no script:
+1. Adicionar constante: `const FLARE_PROP_KEY = "escavadora:landed_flares";`
+2. Funcao `carregarLandedFlares()` - le `world.getDynamicProperty(FLARE_PROP_KEY)`, parse JSON, popula Map
+3. Funcao `salvarLandedFlares()` - serializa `Array.from(landedFlares.entries())` para JSON, chama `world.setDynamicProperty(FLARE_PROP_KEY, ...)`
+4. Subscribe `world.afterEvents.worldLoad`:
+   - Repopular `landedFlares` Map a partir do DynamicProperty
+   - Para cada entry expirada, tentar `removeSingleLight` imediatamente; se chunk descarregado, manter no Map para retry no proximo update
+5. Em `flareLand` (linha 645) e `updateLandedFlares` (linha 856): chamar `salvarLandedFlares()` apos cada `set`/`delete`
+6. Em `removeSingleLight` que falha por chunk descarregado: **NAO** deletar entry do Map - manter para retry; usar fallback `runCommand("tickingarea add ...")` apenas se age > `maxDuration + 1200` (tempo razoavel)
+7. **Manter `flightFlares` apenas em Map** (estado efemero - flares em voo nao precisam sobreviver a reload; o loop a cada 2 ticks ja faz reconciliacao via `dimension.getEntities`)
+8. Chave de DynamicProperty usa prefixo `escavadora:` para evitar colisao com outros addons (Protocolo 5)
+
+**Limite do engine:** `DynamicProperty` aceita ate 32KB por chave. Com `FLARE_CONFIG.maxLanded: 5` e ~150 bytes por entry, o consumo maximo e ~750 bytes - bem dentro do limite.
+
+### 3B. Re-sincronizar script para pack unificado
+Apos validar `Super Picareta BP/scripts/main.js`, replicar mudancas no `Mods Pietro e Manoel BP/scripts/main.js` (a logica do FLARE precisa estar identica nos dois packs - **nao manter divergencias**).
+
+### Validacao da Onda 3
+- `node --check "Super Picareta/Super Picareta BP/scripts/main.js"` (zero erros de sintaxe)
+- Aplicar skill `varredura-bugs` no script, focando na Etapa 8 (uso correto de DynamicProperty)
+- Teste in-game:
+  1. Atirar sinalizador em local visivel
+  2. Executar `/reload`
+  3. Aguardar tempo total de duracao (60s em terra, 30s em agua)
+  4. Confirmar que `light_block` foi removido apos expirar (mesmo apos reload)
+- `auditar_paridade.mjs` continua 0 bloqueios
+
+---
+
+## Onda 4 - Ajustes Comportamentais (resolve B5+B6+B7)
+
+**Objetivo:** tuning de jogabilidade sem mudancas estruturais.
+
+### 4A. Pistola Sinalizadora - reduzir quique (B5)
+Editar `Super Picareta BP/scripts/main.js`, objeto `FLARE_CONFIG.bounce` (linhas 452-454) **E** `Mods Pietro e Manoel BP/scripts/main.js` (linhas 431-433, valores identicos). Os dois precisam ficar em paralelo - divergir entre packs cria comportamento diferente conforme qual pack o usuario ativa.
+
+Substituicao no objeto `bounce.default`:
+```diff
+- maxBounces: 2,
+- default: { velocityLoss: 0.3, minVertical: 0.1, maxVertical: -0.1 },
++ maxBounces: 1,
++ default: { velocityLoss: 0.2, minVertical: 0.05, maxVertical: -0.05 },
 ```
 
-## Limitação documentada para o usuário
+**Rationale dos 4 parametros** (validado contra `calculateBouncedVelocity` em `main.js:610-619`):
+- `maxBounces: 2 -> 1` - apenas 1 ricochete antes de pousar definitivamente.
+- `velocityLoss: 0.3 -> 0.2` - **atencao ao nome enganoso**: este valor e o **multiplicador de retencao**, nao de perda. O codigo faz `vx = hitVector.x * loss`, ou seja `0.3` significa "retem 30%". Baixar para `0.2` = retem 20% = bounce mais discreto. (A versao anterior deste plano dizia `0.55`, o que **aumentaria** a energia do quique - era erro semantico.)
+- `minVertical: 0.1 -> 0.05` - piso de "bounce minimo para cima" cai pela metade. Em superficies horizontais o flare quica menos energeticamente. Nao zerar para nao perder o "tiquinho de quique" que da personalidade ao efeito.
+- `maxVertical: -0.1 -> -0.05` - simetrico ao anterior, para colisoes em "face Down" (raro, ex: bater num teto). Mantem coerencia.
 
-O arco vanilla **exige uma `minecraft:arrow` no inventário** para disparar (a menos que o jogador tenha o encantamento Infinity ou esteja em modo Criativo). O script cuida disso inserindo uma "arrow fantasma" temporária quando detecta que o player segura arco e tem flecha customizada, e ela será suprimida no spawn. **No modo Sobrevivência sem Infinity**, recomenda-se que o jogador mantenha pelo menos 1 flecha vanilla no inventário como segurança.
+### 4B. Rifle Sniper - feedback de zoom (B6)
+Editar `Pistola Laser BP/scripts/main.js` (funcao `ativarZoom`, linhas 57-67):
+- Substituir `catch (e) {}` por `catch (e) { jogador.sendMessage("§cZoom indisponivel - habilite Beta APIs no mundo"); }`
+- Avaliar adicionar valor intermediario configuravel: `fovZoom: 25` (zoom 3.2x ao inves de 5.3x), reduzindo o efeito de pan rapido pela metade
+- Re-sincronizar com pack unificado
 
-## Verificação end-to-end
+### 4C. Rifle Sniper - documentar limitacao de pan (B7)
+Adicionar nota em `CLAUDE.md` (secao "Verificacao") informando que a sensibilidade do mouse no Bedrock **nao escala automaticamente com FOV**. Pan rapido em FOV < 20 e limitacao da plataforma - nao tem fix por addon. Para diminuir o efeito, aumentar `fovZoom` para 25-30.
 
-1. Instalar BP+RP via copiar para `%LOCALAPPDATA%\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\development_*_packs\`.
-2. Criar mundo Criativo de teste, ativar os 2 packs e habilitar **Beta APIs** (se necessário) + **Holiday Creator Features**.
-3. Abrir inventário criativo → aba **Equipamento**: confirmar 4 flechas com texturas próprias e nomes traduzidos.
-4. Testar cada receita no banco de trabalho: confirmar yield 8 e ingredientes corretos.
-5. Pegar arco + 1 flecha vanilla + cada flecha customizada. Atirar contra:
-   - Bloco (Flecha TNT) → confirmar explosão de raio ~3.
-   - Mob (Veneno) → confirmar `poison`, `hunger`, `nausea`, `weakness` simultâneos.
-   - Mob (Lerdeza) → confirmar `slowness IV` + `mining_fatigue II`.
-   - Mob (Paralisia) → confirmar `slowness V` + `mining_fatigue V` + `blindness`.
-6. Verificar visualmente que a flecha em voo tem **textura customizada** (não branca vanilla).
-7. Verificar Content Log do Minecraft (sem erros de JSON ou script).
-8. Testar com arco com encantamento Infinity (flecha custom deve continuar sendo consumida; arrow vanilla não).
-9. Rodar `/revisar-mod` e `/varredura-bugs` no addon.
+### Validacao da Onda 4
+- Skill `varredura-bugs` em cada `main.js` modificado
+- `auditar_paridade.mjs` continua 0 bloqueios
+- Roteiro de teste in-game:
+  1. Disparar sinalizador no chao -> confirmar **maximo 1 quique**
+  2. Recarregar mundo com sinalizador ativo -> confirmar **luz removida** ao expirar
+  3. Mirar com sniper sem Beta APIs habilitada -> confirmar **mensagem de erro** na tela
+  4. Equipar armadura de Slime ativando **somente o pack unificado** -> confirmar **modelo verde** aparece no corpo
+  5. Craftar pistola laser no pack unificado -> confirmar **icone**, **modelo** e **disparo** funcionam
+  6. Lancar pocao de Cactus Zumbi no pack unificado -> confirmar **entidade spawna**
 
-## Riscos remanescentes
+---
 
-- **Multiplayer com 2 arqueiros disparando no mesmo tick**: marcação por `player.id` + raio de busca de 3 blocos minimiza colisões; em casos extremos pode haver ambiguidade — aceitável.
-- **Arrow fantasma**: cleanup ao trocar item ou sair do mundo (via `playerLeave` event).
-- **Power < 0.1**: tap-fire ignorado para evitar uso acidental.
-- **Velocidade ajustável**: `velocidadeBase = 3.0` pode precisar de tuning fino após teste in-game.
+## Validacao final (gate de release)
 
-## Fluxo de implementação
+Antes de declarar o projeto "estavel", todas as verificacoes abaixo devem passar:
 
-Conforme `CLAUDE.md`, será usado:
-1. `/criar-mob` (4x, uma por entidade projétil) — gera entidades + items + receitas + texturas placeholder + traduções
-2. `/comportamento-mob` — adiciona lógica completa em `scripts/main.js`
-3. `/revisar-mod` — valida integridade
-4. `/varredura-bugs` — encontra problemas finais
-5. `instalar.bat` (atualizar para incluir o novo addon)
+```
+# 1. Paridade total
+node .claude/skills/integridade-projeto/auditar_paridade.mjs
+# Esperado: TOTAL DE BLOQUEIOS: 0
+
+# 2. Sintaxe dos scripts
+node --check "Super Picareta/Super Picareta BP/scripts/main.js"
+node --check "Pistola Laser/Pistola Laser BP/scripts/main.js"
+node --check "Cactus Zumbi/Cactus Zumbi BP/scripts/main.js"
+node --check "Armadura de Slime/Armadura de Slime BP/scripts/main.js"
+node --check "Mods Pietro e Manoel/Mods Pietro e Manoel BP/scripts/main.js"
+```
+
+Skills a aplicar mentalmente em cada addon (5 modulares + 1 unificado):
+- `revisar-mod` - checklist de 13 itens
+- `varredura-bugs` - 12 etapas
+- `integridade-projeto` - 5 protocolos completos
+
+## Riscos e mitigacao
+
+| Risco | Mitigacao |
+|-------|-----------|
+| Onda 1 introduz divergencia (mesmo arquivo em modular + unificado com conteudo diferente) | Regra rigida: sempre copiar do modular para o unificado, nunca editar so um lado |
+| Onda 3 quebra retrocompatibilidade com luzes ja colocadas em mundos antigos | Funcao de migracao no `worldLoad`: se DynamicProperty vazio mas existem light_blocks com tag conhecida no spawn, aceitar perda de tracking (one-time leak) |
+| Onda 4 perde valores de tuning anteriores | Documentar valores antigos em comentario inline antes de substituir |
+| Pack unificado fica desincronizado dos modulares apos novas features | Adicionar `auditar_paridade.mjs` ao fluxo das skills `/criar-mob` e `/comportamento-mob` (rodar antes de marcar tarefa como concluida) |
+| Usuario ativa simultaneamente pack unificado + modulares | Documentar em `CLAUDE.md` que apenas um dos dois deve estar ativo no mesmo mundo - evita double-subscribe de eventos e duplicacao de light_blocks |
+
+## Ordem de commits sugerida
+
+0. `chore: adiciona corrigir-bugs.js para fixes mecanizaveis` (Onda 0 - cria o script)
+1. `fix: aplica corrigir-bugs.js (Slime parity + empty.json + render rifle + bounce)` (Onda 0 - executa)
+2. `fix(unificado): sincroniza paridade Pistola Laser` (Onda 1B)
+3. `fix(unificado): sincroniza paridade Cactus Zumbi` (Onda 1C)
+4. `fix(unificado): corrige demais render_controllers e referencias quebradas` (Onda 2 - resto)
+5. `refactor(super-picareta): persiste landedFlares via DynamicProperty` (Onda 3A)
+6. `chore(unificado): re-sincroniza script do FLARE` (Onda 3B)
+7. `fix(pistola-laser): feedback de zoom quando API falha` (Onda 4B)
+8. `docs: documenta limitacao de pan/FOV no Bedrock` (Onda 4C)
+
+Nota: Onda 1A e Onda 4A foram absorvidas pela Onda 0 (commit 1). Se preferir NAO usar a Onda 0 (rota manual), substituir commits 0 e 1 pelos antigos `fix(unificado): sincroniza paridade Armadura de Slime` e `tune(super-picareta): reduz quique do sinalizador`.
+
+Apos cada commit, rodar `auditar_paridade.mjs` para garantir paridade preservada.
+
+---
+
+## Apendice A - Automacao com `corrigir-bugs.js`
+
+Plano detalhado: ver `vou-criar-um-script-snug-leaf.md` na raiz do projeto.
+
+Este script automatiza os 4 fixes mecanizaveis identificados (escopo da Onda 0). **NAO substitui** as ondas 1B/1C/2A-resto/2B/3/4B/4C, que exigem decisao manual ou refatoracao arquitetural.
+
+### Quando usar
+- Ao iniciar a execucao do plano (substitui passos manuais da Onda 0)
+- Apos retomar trabalho de uma sessao anterior (script e idempotente)
+- Como gate de pre-release (`--dry-run` confirma que nenhum fix mecanizavel regrediu)
+
+### Fixes cobertos pelo script
+
+| Fix | Onda equivalente | Arquivos tocados |
+|-----|------------------|------------------|
+| 1 - Slime parity | 1A completa | 6 arquivos (4 attachables + 2 PNGs de modelo) |
+| 2 - empty.json | 2C primeiro bullet | 2 arquivos (`empty.json` em 2 BPs) |
+| 3 - Render rifle | 2A primeiro bullet | 1 arquivo (`rifle_sniper.json` attachable) |
+| 4 - Bounce tuning | 4A completa | 2 arquivos (`Super Picareta` + `Mods Pietro e Manoel` main.js) |
+
+### Flags
+- `--dry-run` - reporta sem escrever
+- `--no-backup` - desativa criacao de `.bak`
+- `--apenas <fixN>` - roda so um fix (ex: `--apenas fix3`)
+- `--pular <fixN>` - pula um fix
+- `--strict` - para no primeiro erro (padrao: continua)
+- `--no-validate` - pula a validacao final automatica
+
+### Pre-condicoes
+- Node.js >= 18
+- Executar a partir da raiz do projeto
+- Working tree limpo (para facilitar revisao do diff)
+
+### Padrao de execucao recomendado
+```
+# 1. Preview do que sera feito
+node corrigir-bugs.js --dry-run
+
+# 2. Aplicar de fato
+node corrigir-bugs.js
+
+# 3. Confirmar que paridade da Slime sumiu do relatorio
+node .claude/skills/integridade-projeto/auditar_paridade.mjs
+# Esperado: TOTAL DE BLOQUEIOS: 69 (de 75)
+```
+
+### Limites explicitos do script
+- Nao toca em qualquer arquivo da Pistola Laser ou Cactus Zumbi (escopo de merge manual nas Ondas 1B/1C)
+- Nao mexe em `landedFlares` / `DynamicProperty` (refatoracao arquitetural da Onda 3)
+- Nao altera `Pistola Laser BP/scripts/main.js` para feedback de zoom (Onda 4B exige decisao sobre `fovZoom` intermediario)
+- Nao edita `CLAUDE.md` (Onda 4C - documentacao manual)
