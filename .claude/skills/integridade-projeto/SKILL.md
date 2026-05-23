@@ -30,8 +30,13 @@ Quando o projeto tem um pack consolidado (ex: `Mods Pietro e Manoel`) que reune 
 - Documentar no `manifest.json` do unificado que ele substitui os modulares (`metadata.product_type`)
 - **Nao permitir** ativacao simultanea de pack unificado + pack modular no mesmo mundo (causa double-subscribe de eventos)
 
-### Comando de validacao sugerido
-Script Node.js varre cada arquivo dos modulares e checa existencia no unificado (comparar por caminho relativo a partir de `BP/` ou `RP/`).
+### Comando de validacao automatizado
+Executar `node .claude/skills/integridade-projeto/auditar_paridade.mjs` na raiz do projeto.
+O script audita os 5 addons modulares contra o pack unificado e gera relatorio detalhado
+listando arquivos ausentes, chaves de `item_texture.json` faltando e linhas de `.lang` nao replicadas.
+Codigo de saida = numero total de bloqueios encontrados.
+
+Para adicionar novo addon a auditoria, editar o array `ADDONS` no topo do script.
 
 ## Protocolo 2 - Consistencia de Identificadores BP <-> RP
 

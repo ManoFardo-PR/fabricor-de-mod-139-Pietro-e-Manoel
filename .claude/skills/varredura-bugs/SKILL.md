@@ -9,6 +9,11 @@ argument-hint: "[nome-do-addon-ou-vazio-para-todos]"
 Faca uma varredura completa de bugs no addon especificado em `$ARGUMENTS`.
 Se nenhum addon for especificado, varra todos os addons no projeto.
 
+> **Complementa** a skill `integridade-projeto` (`.claude/skills/integridade-projeto/SKILL.md`):
+> esta varredura foca em **bugs internos** de cada arquivo; a outra cobre **paridade entre
+> packs**, **DynamicProperties**, **namespaces** e **referencias entre BP e RP**. Rodar ambas
+> antes de release.
+
 ## Etapa 1: Identificar Addons
 - Liste todas as pastas de addon (que contenham subpastas BP e RP)
 - Se `$ARGUMENTS` especificar um addon, foque apenas nele
@@ -87,6 +92,12 @@ Se existir `scripts/main.js`:
 - Divisao por zero potencial
 - Acesso a propriedade de entidade que pode ser undefined (entidade morta/removida)
 - Falta de try/catch ao redor de operacoes de entidade
+- **Estado em `Map`/`Set` global** para objetos persistentes do mundo (light_block, fire, marcadores) sem espelhamento em `world.setDynamicProperty` -> gera orfaos apos `/reload` ou recarregar o mundo
+- **Cleanup unico via `system.runTimeout`** sem fallback persistente -> timeout perde no reload
+- Ausencia de listener em `world.afterEvents.worldLoad` para reconciliar estado de blocos colocados por script
+- `try/catch` silencioso (`catch (e) {}`) em chamadas criticas da Camera API ou DynamicProperties -> falha invisivel
+- Chaves de `DynamicProperty` sem prefixo `namespace:` (colide entre addons)
+- `BlockPermutation.resolve` para blocos beta (`minecraft:light_block`) sem garantir que Beta APIs estao habilitadas
 
 ## Etapa 9: Bugs de Animacoes e Render Controllers
 - Animacoes com timeline vazia
@@ -107,6 +118,17 @@ Para cada receita em `recipes/*.recipe.json`:
 - Itens/entidades sem traducao em algum dos idiomas
 - Caracteres especiais nao escapados corretamente
 - Linhas mal formatadas (sem = separando chave e valor)
+
+## Etapa 12: Bugs de Paridade entre Packs (multi-addon)
+Quando o projeto tem pack consolidado e packs modulares:
+- Item declarado no pack unificado mas **sem PNG** de icone (`textures/items/<nome>.png` ausente)
+- Item wearable declarado no pack unificado **sem attachable** correspondente em `attachables/`
+- Attachable no pack unificado apontando para textura em `textures/models/armor/` que nao existe
+- Identifier identico em dois packs ativos simultaneamente (modular + unificado) -> double-load
+- Script duplicado em dois packs ativos -> double-subscribe de eventos
+- Chaves de traducao definidas em um pack mas nao no outro (texto cru no jogo)
+
+> Para auditoria sistematica deste tipo de bug, usar a skill `integridade-projeto` (Protocolo 1).
 
 ## Componentes Deprecados (Bedrock 1.21+)
 Verificar se algum destes componentes deprecados esta em uso:
