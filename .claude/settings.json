@@ -10,12 +10,31 @@
       "Bash(powershell -Command \":*)",
       "Bash(node --check \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Armadura de Slime/Armadura de Slime BP/scripts/main.js\")",
       "Bash(node -e \"const c=require\\(''crypto''\\); for\\(let i=0;i<4;i++\\) console.log\\(c.randomUUID\\(\\)\\)\")",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "WebSearch",
+      "Bash(for addon in \"Armadura de Slime\" \"Cactus Zumbi\" \"Multiplicador\" \"Super Picareta\" \"Mods Pietro e Manoel\")",
+      "Bash(do echo \"=== $addon ===\")",
+      "Read(//c/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/**)",
+      "Bash(grep -E \"\\(BP|RP\\)$\")",
+      "Bash(node --version)",
+      "Bash(node --check \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser BP/scripts/main.js\")",
+      "Bash(for f in \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser BP/manifest.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser RP/manifest.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser BP/items/pistola_laser.item.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser BP/items/municao_laser.item.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser BP/entities/laser_projetil.entity.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser BP/recipes/pistola_laser.recipe.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser BP/recipes/municao_laser.recipe.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser RP/entity/laser_projetil.entity.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser RP/models/entity/laser_projetil.geo.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser RP/animations/laser_projetil.animation.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser RP/render_controllers/laser_projetil.render_controllers.json\" \"c:/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser/Pistola Laser RP/textures/item_texture.json\")",
+      "Bash(do)",
+      "Bash(node -e \"JSON.parse\\(require\\(''fs''\\).readFileSync\\(''$f'',''utf8''\\)\\)\")",
+      "Bash(echo \"OK: $f\")",
+      "Bash(echo \"FAIL: $f\")",
+      "Bash(echo \"Exit: $?\")",
+      "WebFetch(domain:mcpedl.com)",
+      "Bash(find '/c/Users/mfard/OneDrive/AmbVir/Pietro/fabricor de mod 139 Pietro e Manoel/Pistola Laser' -type f -name *)",
+      "Bash(find /c/Users/mfard -name *.geo -o -name *.geo.json)",
+      "Bash(find /c/Users/mfard/Desktop /c/Users/mfard/Downloads /c/Users/mfard/Documents /c/Users/mfard/OneDrive -maxdepth 5 -name *.geo*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\mfard\\OneDrive\\AmbVir\\Pietro\\fabricor de mod 139 Pietro e Manoel\\.claude\\skills",
       "\\tmp",
-      "c:\\Users\\mfard\\OneDrive\\AmbVir\\Pietro\\fabricor de mod 139 Pietro e Manoel\\.claude"
+      "c:\\Users\\mfard\\OneDrive\\AmbVir\\Pietro\\fabricor de mod 139 Pietro e Manoel\\.claude",
+      "c:\\Users\\mfard\\.claude\\plans",
+      "c:\\Users\\mfard\\.claude\\agent-memory\\mob-researcher"
     ]
   },
   "hooks": {

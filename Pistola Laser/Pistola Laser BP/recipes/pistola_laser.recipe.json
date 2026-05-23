@@ -1,0 +1,24 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "pistola_laser:pistola_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "RDG",
+            " I ",
+            " I "
+        ],
+        "key": {
+            "R": { "item": "minecraft:redstone" },
+            "D": { "item": "minecraft:diamond" },
+            "G": { "item": "minecraft:glass" },
+            "I": { "item": "minecraft:iron_ingot" }
+        },
+        "result": {
+            "item": "pistola_laser:pistola",
+            "count": 1
+        }
+    }
+}

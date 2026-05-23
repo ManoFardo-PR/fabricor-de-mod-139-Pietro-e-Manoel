@@ -1,0 +1,22 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "pistola_laser:municao_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            " R ",
+            "RGR",
+            " R "
+        ],
+        "key": {
+            "R": { "item": "minecraft:redstone" },
+            "G": { "item": "minecraft:gold_ingot" }
+        },
+        "result": {
+            "item": "pistola_laser:municao_laser",
+            "count": 8
+        }
+    }
+}

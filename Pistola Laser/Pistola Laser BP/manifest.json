@@ -1,0 +1,29 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Pistola Laser - Behavior",
+        "description": "Addon de pistola laser com sistema de municao",
+        "uuid": "d4e5f6a7-b8c9-d0e1-f2a3-b4c5d6e7f8a9",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "script",
+            "language": "javascript",
+            "uuid": "e5f6a7b8-c9d0-e1f2-a3b4-c5d6e7f8a9b0",
+            "entry": "scripts/main.js",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "module_name": "@minecraft/server",
+            "version": "1.12.0"
+        },
+        {
+            "uuid": "f6a7b8c9-d0e1-f2a3-b4c5-d6e7f8a9b0c1",
+            "version": [1, 0, 0]
+        }
+    ]
+}

@@ -42,7 +42,7 @@ echo.
 set "BP_DEST=%BP_DIR%\Mods Pietro e Manoel BP"
 set "RP_DEST=%RP_DIR%\Mods Pietro e Manoel RP"
 
-echo [1/2] Instalando Mods Pietro e Manoel...
+echo [1/3] Instalando Mods Pietro e Manoel...
 
 if exist "%BP_DEST%" rmdir /s /q "%BP_DEST%"
 if exist "%RP_DEST%" rmdir /s /q "%RP_DEST%"
@@ -70,7 +70,7 @@ echo.
 set "CZ_BP_DEST=%BP_DIR%\Cactus Zumbi BP"
 set "CZ_RP_DEST=%RP_DIR%\Cactus Zumbi RP"
 
-echo [2/2] Instalando Cactus Zumbi...
+echo [2/3] Instalando Cactus Zumbi...
 
 if exist "%CZ_BP_DEST%" rmdir /s /q "%CZ_BP_DEST%"
 if exist "%CZ_RP_DEST%" rmdir /s /q "%CZ_RP_DEST%"
@@ -90,6 +90,34 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo   RP - OK!
+echo.
+
+:: ============================================
+:: PACK 3: Pistola Laser
+:: ============================================
+set "PL_BP_DEST=%BP_DIR%\Pistola Laser BP"
+set "PL_RP_DEST=%RP_DIR%\Pistola Laser RP"
+
+echo [3/3] Instalando Pistola Laser...
+
+if exist "%PL_BP_DEST%" rmdir /s /q "%PL_BP_DEST%"
+if exist "%PL_RP_DEST%" rmdir /s /q "%PL_RP_DEST%"
+
+xcopy "%SCRIPT_DIR%Pistola Laser\Pistola Laser BP" "%PL_BP_DEST%" /e /i /q >nul
+if %errorlevel% neq 0 (
+    echo   [ERRO] Falha ao copiar BP!
+    pause
+    exit /b 1
+)
+echo   BP - OK!
+
+xcopy "%SCRIPT_DIR%Pistola Laser\Pistola Laser RP" "%PL_RP_DEST%" /e /i /q >nul
+if %errorlevel% neq 0 (
+    echo   [ERRO] Falha ao copiar RP!
+    pause
+    exit /b 1
+)
+echo   RP - OK!
 
 echo.
 echo ============================================
@@ -98,9 +126,10 @@ echo ============================================
 echo.
 echo Agora no Minecraft:
 echo   1. Crie um mundo novo (ou edite um existente)
-echo   2. Ative os 4 packs (2 de cada addon):
+echo   2. Ative os 6 packs (2 de cada addon):
 echo      - "Mods Pietro e Manoel" (BP + RP)
 echo      - "Cactus Zumbi" (BP + RP)
+echo      - "Pistola Laser" (BP + RP)
 echo   3. Ative "Beta APIs" nas opcoes experimentais
 echo.
 echo Conteudo dos packs:
@@ -118,5 +147,11 @@ echo   - Cactus Zumbi Bom (com flor, ataca mobs hostis)
 echo   - Cactus Zumbi Mau (sem flor, ataca jogadores)
 echo   - Espinhos, regeneracao na areia, dano na agua
 echo   - Explosao de espinhos ao morrer, planta cactus ao andar
+echo.
+echo   Pistola Laser:
+echo   - Pistola Laser (dispara projeteis laser rapidos)
+echo   - Municao Laser (crafta com redstone e ouro)
+echo   - Laser quase sem gravidade, causa 8 de dano + fogo
+echo   - HUD mostra contagem de municao na tela
 echo.
 pause

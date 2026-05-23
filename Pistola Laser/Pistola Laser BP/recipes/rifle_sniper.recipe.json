@@ -1,0 +1,25 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "pistola_laser:rifle_sniper_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "GGG",
+            "RDE",
+            " II"
+        ],
+        "key": {
+            "G": { "item": "minecraft:glass" },
+            "R": { "item": "minecraft:redstone" },
+            "D": { "item": "minecraft:diamond" },
+            "E": { "item": "minecraft:emerald" },
+            "I": { "item": "minecraft:iron_ingot" }
+        },
+        "result": {
+            "item": "pistola_laser:rifle_sniper",
+            "count": 1
+        }
+    }
+}

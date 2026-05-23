@@ -1,0 +1,6 @@
+item.pistola_laser:pistola.name=Pistola Laser
+item.pistola_laser:municao_laser.name=Munição Laser
+entity.pistola_laser:laser_projetil.name=Laser
+item.pistola_laser:rifle_sniper.name=Rifle Sniper Laser
+item.pistola_laser:municao_sniper.name=Munição Sniper
+entity.pistola_laser:sniper_projetil.name=Laser Sniper

@@ -4,7 +4,8 @@
       "Bash(done)",
       "Bash(unzip:*)",
       "WebFetch(domain:wiki.bedrock.dev)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(dir:*)"
     ]
   }
 }

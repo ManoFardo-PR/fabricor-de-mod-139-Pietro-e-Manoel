@@ -1,0 +1,18 @@
+{
+    "resource_pack_name": "Pistola Laser",
+    "texture_name": "atlas.items",
+    "texture_data": {
+        "pistola_laser": {
+            "textures": "textures/items/pistola_laser"
+        },
+        "municao_laser": {
+            "textures": "textures/items/municao_laser"
+        },
+        "rifle_sniper": {
+            "textures": "textures/items/rifle_sniper"
+        },
+        "municao_sniper": {
+            "textures": "textures/items/municao_sniper"
+        }
+    }
+}

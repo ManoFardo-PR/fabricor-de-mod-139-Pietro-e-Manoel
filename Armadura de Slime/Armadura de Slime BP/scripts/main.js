@@ -267,7 +267,18 @@ system.runInterval(() => {
         }
 
         // --- 4 PECAS (SET COMPLETO): Saltos progressivos ao correr ---
-        if (pieces === 4 && player.isSprinting) {
+        // FEATURE: Agachar reduz o bounceHeight gradualmente (freio)
+        if (pieces === 4 && player.isSneaking) {
+            // Agachando = freia o pulo rapidamente
+            state.bounceHeight = Math.max(
+                state.bounceHeight * 0.5,   // Reduz 50% a cada tick
+                0.0                          // Para completamente
+            );
+            if (state.bounceHeight < 0.1) {
+                state.bounceHeight = 0;
+                state.ticksSprinting = 0;
+            }
+        } else if (pieces === 4 && player.isSprinting) {
             state.ticksSprinting += 4;
 
             // Aumenta gradualmente a altura do salto
@@ -285,12 +296,6 @@ system.runInterval(() => {
                     let finalBounce = state.bounceHeight;
                     let finalPush = CONFIG.bounceForwardPush;
 
-                    // FEATURE 1: Agachar reduz o quique
-                    if (player.isSneaking) {
-                        finalBounce *= CONFIG.sneakBounceMultiplier;
-                        finalPush *= CONFIG.sneakBounceMultiplier;
-                    }
-
                     player.applyKnockback(
                         viewDir.x, viewDir.z,
                         finalPush,
@@ -300,7 +305,7 @@ system.runInterval(() => {
                     // Som de slime proporcional ao salto
                     if (finalBounce > 1.0) {
                         dim.playSound("mob.slime.big", loc);
-                    } else {
+                    } else if (finalBounce > 0) {
                         dim.playSound("mob.slime.small", loc);
                     }
                 } catch (e) { }
