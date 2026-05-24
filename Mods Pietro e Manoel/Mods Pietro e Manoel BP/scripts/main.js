@@ -429,8 +429,8 @@ const FLARE_CONFIG = {
     duration: { land: 1200, water: 600 },
     trail: { enabled: true, lightLevel: 14 },
     bounce: {
-        maxBounces: 2,
-        default: { velocityLoss: 0.3, minVertical: 0.1, maxVertical: -0.1 },
+        maxBounces: 1,
+        default: { velocityLoss: 0.2, minVertical: 0.05, maxVertical: -0.05 },
         exceptions: {
             "minecraft:snow_layer":    { action: "land", halfDuration: true },
             "minecraft:snow":          { action: "land", halfDuration: true },
@@ -1433,3 +1433,555 @@ world.afterEvents.entityHitEntity.subscribe((event) => {
 world.afterEvents.playerLeave.subscribe((event) => {
     slimePlayerState.delete(event.playerId);
 });
+
+// ████████████████████████████████████████████████████████████████
+// ██  4. PISTOLA LASER & RIFLE SNIPER                          ██
+// ██  HUD de municao + luneta com zoom via Camera API          ██
+// ████████████████████████████████████████████████████████████████
+
+// ==== CONFIGURACAO ====
+const LASER_CONFIG = {
+    intervaloHUD: 10,           // ticks entre atualizacoes do HUD (0.5s)
+    intervaloLuneta: 4,         // ticks entre atualizacoes da mira da luneta
+
+    // Pistola Laser
+    identificadorPistola: "pistola_laser:pistola",
+    identificadorMunicao: "pistola_laser:municao_laser",
+    identificadorProjetil: "pistola_laser:laser_projetil",
+
+    // Rifle Sniper
+    identificadorSniper: "pistola_laser:rifle_sniper",
+    identificadorMunicaoSniper: "pistola_laser:municao_sniper",
+    identificadorProjetilSniper: "pistola_laser:sniper_projetil",
+
+    // Luneta
+    fovZoom: 15,                // FOV ao mirar (normal ~80, menor = mais zoom)
+    fovNormal: 80,              // FOV padrao
+    tempoTransicao: 0.15,       // segundos para transicao suave do zoom
+};
+
+// ==== ESTADO ====
+const laserJogadorMirando = new Map();       // player.id -> boolean
+const laserJogadorInicioMira = new Map();    // player.id -> tick de inicio
+
+function laserContarMunicao(jogador, tipoMunicao) {
+    try {
+        const inventario = jogador.getComponent("minecraft:inventory");
+        if (!inventario) return 0;
+        const container = inventario.container;
+        let total = 0;
+        for (let i = 0; i < container.size; i++) {
+            try {
+                const slot = container.getItem(i);
+                if (slot && slot.typeId === tipoMunicao) {
+                    total += slot.amount;
+                }
+            } catch (e) {}
+        }
+        return total;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function laserAtivarZoom(jogador) {
+    try {
+        jogador.camera.setFov({
+            fov: LASER_CONFIG.fovZoom,
+            easeOptions: {
+                easeTime: LASER_CONFIG.tempoTransicao,
+                easeType: "Linear"
+            }
+        });
+    } catch (e) {}
+}
+
+function laserDesativarZoom(jogador) {
+    try {
+        jogador.camera.setFov({
+            fov: LASER_CONFIG.fovNormal,
+            easeOptions: {
+                easeTime: LASER_CONFIG.tempoTransicao,
+                easeType: "Linear"
+            }
+        });
+    } catch (e) {}
+}
+
+system.runInterval(() => {
+    try {
+        const jogadores = world.getAllPlayers();
+        for (const jogador of jogadores) {
+            try {
+                const equipamento = jogador.getComponent("minecraft:equippable");
+                if (!equipamento) continue;
+                const itemMao = equipamento.getEquipment(EquipmentSlot.Mainhand);
+                if (!itemMao) continue;
+                const tipoItem = itemMao.typeId;
+
+                if (tipoItem === LASER_CONFIG.identificadorSniper && laserJogadorMirando.get(jogador.id)) {
+                    const totalMunicao = laserContarMunicao(jogador, LASER_CONFIG.identificadorMunicaoSniper);
+                    const tickInicio = laserJogadorInicioMira.get(jogador.id) || system.currentTick;
+                    const tempoMirando = system.currentTick - tickInicio;
+
+                    let cargaPct = Math.min(tempoMirando / 20, 1.0);
+                    let barraCheia = Math.floor(cargaPct * 8);
+                    let corBarra = cargaPct >= 1.0 ? "§a" : "§e";
+                    let barra = corBarra + "█".repeat(barraCheia) + "§8" + "░".repeat(8 - barraCheia);
+                    let corMunicao = totalMunicao > 0 ? "§b" : "§4";
+                    let statusCarga = cargaPct >= 1.0 ? "§a§lPRONTO" : "§eCarregando...";
+
+                    jogador.onScreenDisplay.setActionBar(
+                        `§l§3«§f ⊕ §3»§r  ${barra}  ${statusCarga}  ${corMunicao}${totalMunicao}`
+                    );
+                    continue;
+                }
+
+                let tipoMunicao = null;
+                let nomeArma = "";
+                if (tipoItem === LASER_CONFIG.identificadorPistola) {
+                    tipoMunicao = LASER_CONFIG.identificadorMunicao;
+                    nomeArma = "Pistola";
+                } else if (tipoItem === LASER_CONFIG.identificadorSniper) {
+                    tipoMunicao = LASER_CONFIG.identificadorMunicaoSniper;
+                    nomeArma = "Sniper";
+                } else {
+                    continue;
+                }
+
+                const totalMunicao = laserContarMunicao(jogador, tipoMunicao);
+                let cor = "§a";
+                if (totalMunicao <= 8) cor = "§e";
+                if (totalMunicao <= 3) cor = "§c";
+                if (totalMunicao === 0) cor = "§4";
+
+                const mensagem = totalMunicao > 0
+                    ? `${cor}⚡ ${nomeArma}: ${totalMunicao} munição`
+                    : `§4⚡ SEM MUNIÇÃO! Crafta mais`;
+                jogador.onScreenDisplay.setActionBar(mensagem);
+            } catch (e) {}
+        }
+    } catch (e) {}
+}, LASER_CONFIG.intervaloLuneta);
+
+world.afterEvents.itemStartUse.subscribe((evento) => {
+    try {
+        const jogador = evento.source;
+        const item = evento.itemStack;
+        if (!item || item.typeId !== LASER_CONFIG.identificadorSniper) return;
+
+        laserJogadorMirando.set(jogador.id, true);
+        laserJogadorInicioMira.set(jogador.id, system.currentTick);
+        laserAtivarZoom(jogador);
+
+        try {
+            jogador.playSound("armor.equip_iron", { volume: 0.3, pitch: 1.5 });
+        } catch (e) {}
+    } catch (e) {}
+});
+
+world.afterEvents.itemStopUse.subscribe((evento) => {
+    try {
+        const jogador = evento.source;
+        if (laserJogadorMirando.get(jogador.id)) {
+            laserJogadorMirando.set(jogador.id, false);
+            laserDesativarZoom(jogador);
+        }
+    } catch (e) {}
+});
+
+world.afterEvents.itemReleaseUse.subscribe((evento) => {
+    try {
+        const jogador = evento.source;
+        const item = evento.itemStack;
+        if (!item) return;
+        const tipoItem = item.typeId;
+
+        if (tipoItem === LASER_CONFIG.identificadorPistola) {
+            try {
+                jogador.playSound("firework.blast", { volume: 0.5, pitch: 1.8 });
+            } catch (e) {}
+        }
+
+        if (tipoItem === LASER_CONFIG.identificadorSniper) {
+            laserJogadorMirando.set(jogador.id, false);
+            laserDesativarZoom(jogador);
+            try {
+                jogador.playSound("firework.large_blast", { volume: 0.8, pitch: 0.6 });
+            } catch (e) {}
+            try {
+                jogador.onScreenDisplay.setActionBar("§l§3⚡ DISPARO! ⚡");
+            } catch (e) {}
+        }
+    } catch (e) {}
+});
+
+world.afterEvents.entityHitEntity.subscribe((evento) => {
+    try {
+        const projetil = evento.damagingEntity;
+        const alvo = evento.hitEntity;
+        if (!projetil) return;
+        const tipoProjetil = projetil.typeId;
+
+        if (tipoProjetil === LASER_CONFIG.identificadorProjetil) {
+            try {
+                const posAlvo = alvo.location;
+                alvo.dimension.spawnParticle("minecraft:basic_flame_particle", {
+                    x: posAlvo.x, y: posAlvo.y + 1, z: posAlvo.z
+                });
+            } catch (e) {}
+            try {
+                alvo.dimension.playSound("random.fizz", alvo.location, { volume: 0.8, pitch: 1.5 });
+            } catch (e) {}
+        }
+
+        if (tipoProjetil === LASER_CONFIG.identificadorProjetilSniper) {
+            try {
+                const posAlvo = alvo.location;
+                alvo.dimension.spawnParticle("minecraft:critical_hit_emitter", {
+                    x: posAlvo.x, y: posAlvo.y + 1, z: posAlvo.z
+                });
+                alvo.dimension.spawnParticle("minecraft:endrod", {
+                    x: posAlvo.x, y: posAlvo.y + 1.5, z: posAlvo.z
+                });
+            } catch (e) {}
+            try {
+                alvo.dimension.playSound("random.explode", alvo.location, { volume: 0.6, pitch: 1.2 });
+            } catch (e) {}
+        }
+    } catch (e) {}
+});
+
+world.afterEvents.playerLeave.subscribe((evento) => {
+    laserJogadorMirando.delete(evento.playerId);
+    laserJogadorInicioMira.delete(evento.playerId);
+});
+
+// ████████████████████████████████████████████████████████████████
+// ██  5. CACTUS ZUMBI                                          ██
+// ██  Pocao arremessavel que transforma cactus em Cactus Zumbi ██
+// ████████████████████████████████████████████████████████████████
+
+const CACTUS_CONFIG = {
+    raioDeteccaoCactus: 2,
+    intervaloTracking: 2,
+    limiteVelocidade: 0.05,
+    timeoutProjetil: 200,
+    danoEspinhos: 2,
+    regeneracaoAreia: 1,
+    intervaloAmbiental: 20,
+    danoExplosaoMorte: 3,
+    raioExplosaoMorte: 3,
+    chancePlantarCactus: 0.05,
+};
+
+const cactusPocaoData = new Map();
+const cactusProcessedPocoes = new Set();
+
+system.runInterval(() => {
+    const nomeDimensoes = ["overworld", "nether", "the_end"];
+    const idsVivos = new Set();
+
+    for (const nomeDim of nomeDimensoes) {
+        try {
+            const dim = world.getDimension(nomeDim);
+            const pocoes = dim.getEntities({ type: "cactus_zumbi:pocao_projetil" });
+
+            for (const pocao of pocoes) {
+                idsVivos.add(pocao.id);
+                if (cactusProcessedPocoes.has(pocao.id)) continue;
+                const loc = pocao.location;
+
+                if (!cactusPocaoData.has(pocao.id)) {
+                    cactusPocaoData.set(pocao.id, {
+                        tickSpawn: system.currentTick,
+                        ultimoX: loc.x,
+                        ultimoY: loc.y,
+                        ultimoZ: loc.z,
+                    });
+                    continue;
+                }
+
+                const dados = cactusPocaoData.get(pocao.id);
+                const idade = system.currentTick - dados.tickSpawn;
+                const dx = loc.x - dados.ultimoX;
+                const dy = loc.y - dados.ultimoY;
+                const dz = loc.z - dados.ultimoZ;
+                const velocidade = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                dados.ultimoX = loc.x;
+                dados.ultimoY = loc.y;
+                dados.ultimoZ = loc.z;
+
+                if (idade > CACTUS_CONFIG.timeoutProjetil) {
+                    cactusProcessedPocoes.add(pocao.id);
+                    try { pocao.kill(); } catch (e) {}
+                    continue;
+                }
+                if (velocidade > CACTUS_CONFIG.limiteVelocidade) continue;
+
+                cactusProcessedPocoes.add(pocao.id);
+                cactusProcessarImpactoPocao(dim, loc, pocao);
+            }
+        } catch (e) {}
+    }
+
+    for (const [id] of cactusPocaoData) {
+        if (!idsVivos.has(id)) {
+            cactusPocaoData.delete(id);
+            cactusProcessedPocoes.delete(id);
+        }
+    }
+}, CACTUS_CONFIG.intervaloTracking);
+
+function cactusProcessarImpactoPocao(dim, loc, pocao) {
+    const raio = CACTUS_CONFIG.raioDeteccaoCactus;
+    const cx = Math.floor(loc.x);
+    const cy = Math.floor(loc.y);
+    const cz = Math.floor(loc.z);
+
+    for (let x = cx - raio; x <= cx + raio; x++) {
+        for (let y = cy - raio; y <= cy + raio; y++) {
+            for (let z = cz - raio; z <= cz + raio; z++) {
+                try {
+                    const bloco = dim.getBlock({ x, y, z });
+                    if (!bloco || bloco.typeId !== "minecraft:cactus") continue;
+
+                    let topoY = y;
+                    while (true) {
+                        try {
+                            const acima = dim.getBlock({ x, y: topoY + 1, z });
+                            if (acima && acima.typeId === "minecraft:cactus") {
+                                topoY++;
+                            } else {
+                                break;
+                            }
+                        } catch (e) { break; }
+                    }
+
+                    let temFlor = false;
+                    try {
+                        const blocoAcimaTopo = dim.getBlock({ x, y: topoY + 1, z });
+                        if (blocoAcimaTopo) {
+                            const tipoAcima = blocoAcimaTopo.typeId;
+                            temFlor = tipoAcima.includes("flower") ||
+                                      tipoAcima.includes("poppy") ||
+                                      tipoAcima.includes("dandelion") ||
+                                      tipoAcima.includes("orchid") ||
+                                      tipoAcima.includes("tulip") ||
+                                      tipoAcima.includes("cornflower") ||
+                                      tipoAcima.includes("lily") ||
+                                      tipoAcima.includes("sunflower") ||
+                                      tipoAcima.includes("rose");
+                        }
+                    } catch (e) {}
+
+                    let baseY = y;
+                    while (baseY > cy - 10) {
+                        try {
+                            const abaixo = dim.getBlock({ x, y: baseY - 1, z });
+                            if (abaixo && abaixo.typeId === "minecraft:cactus") {
+                                baseY--;
+                            } else {
+                                break;
+                            }
+                        } catch (e) { break; }
+                    }
+
+                    if (temFlor) {
+                        try {
+                            const blocoFlor = dim.getBlock({ x, y: topoY + 1, z });
+                            if (blocoFlor) blocoFlor.setType("minecraft:air");
+                        } catch (e) {}
+                    }
+
+                    for (let ry = topoY; ry >= baseY; ry--) {
+                        try {
+                            const blocoCactus = dim.getBlock({ x, y: ry, z });
+                            if (blocoCactus) blocoCactus.setType("minecraft:air");
+                        } catch (e) {}
+                    }
+
+                    const tipoMob = temFlor
+                        ? "cactus_zumbi:cactus_zumbi_bom"
+                        : "cactus_zumbi:cactus_zumbi_mau";
+
+                    system.run(() => {
+                        try {
+                            dim.spawnEntity(tipoMob, {
+                                x: x + 0.5,
+                                y: baseY,
+                                z: z + 0.5,
+                            });
+
+                            for (let p = 0; p < 5; p++) {
+                                dim.spawnParticle("minecraft:villager_happy", {
+                                    x: x + 0.5 + (Math.random() - 0.5),
+                                    y: baseY + 1 + Math.random(),
+                                    z: z + 0.5 + (Math.random() - 0.5),
+                                });
+                            }
+
+                            dim.playSound("mob.zombie.remedy", {
+                                x: x + 0.5,
+                                y: baseY + 1,
+                                z: z + 0.5,
+                            });
+
+                            const nome = temFlor
+                                ? "§aCactus Zumbi Bom"
+                                : "§cCactus Zumbi Mau";
+                            world.sendMessage(
+                                `§e[Cactus Zumbi] ${nome}§e surgiu!`
+                            );
+                        } catch (e) {}
+                    });
+
+                    try { pocao.kill(); } catch (e) {}
+                    return;
+                } catch (e) {}
+            }
+        }
+    }
+
+    try { pocao.kill(); } catch (e) {}
+}
+
+world.afterEvents.entityHitEntity.subscribe((evento) => {
+    try {
+        const atacante = evento.damagingEntity;
+        const alvo = evento.hitEntity;
+        if (alvo && alvo.typeId && alvo.typeId.startsWith("cactus_zumbi:cactus_zumbi")) {
+            try {
+                atacante.applyDamage(CACTUS_CONFIG.danoEspinhos, { cause: "contact" });
+                const loc = atacante.location;
+                const dim = atacante.dimension;
+                dim.spawnParticle("minecraft:crit_emitter", loc);
+            } catch (e) {}
+        }
+    } catch (e) {}
+});
+
+world.afterEvents.entityDie.subscribe((evento) => {
+    try {
+        const entidade = evento.deadEntity;
+        if (!entidade || !entidade.typeId) return;
+        if (!entidade.typeId.startsWith("cactus_zumbi:cactus_zumbi")) return;
+
+        const loc = entidade.location;
+        const dim = entidade.dimension;
+        const raio = CACTUS_CONFIG.raioExplosaoMorte;
+
+        const entidadesProximas = dim.getEntities({
+            location: loc,
+            maxDistance: raio,
+        });
+
+        for (const ent of entidadesProximas) {
+            try {
+                if (ent.id === entidade.id) continue;
+                if (!ent.isValid()) continue;
+                ent.applyDamage(CACTUS_CONFIG.danoExplosaoMorte, { cause: "contact" });
+
+                const dx = ent.location.x - loc.x;
+                const dz = ent.location.z - loc.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > 0.1) {
+                    const forca = 1.5;
+                    ent.applyKnockback(dx / dist, dz / dist, forca, 0.4);
+                }
+            } catch (e) {}
+        }
+
+        for (let p = 0; p < 10; p++) {
+            try {
+                dim.spawnParticle("minecraft:crit_emitter", {
+                    x: loc.x + (Math.random() - 0.5) * 3,
+                    y: loc.y + Math.random() * 2,
+                    z: loc.z + (Math.random() - 0.5) * 3,
+                });
+            } catch (e) {}
+        }
+
+        try {
+            dim.playSound("random.explode", loc);
+        } catch (e) {}
+    } catch (e) {}
+});
+
+system.runInterval(() => {
+    const nomeDimensoes = ["overworld", "nether", "the_end"];
+
+    for (const nomeDim of nomeDimensoes) {
+        try {
+            const dim = world.getDimension(nomeDim);
+            const mobsBom = dim.getEntities({ type: "cactus_zumbi:cactus_zumbi_bom" });
+            const mobsMau = dim.getEntities({ type: "cactus_zumbi:cactus_zumbi_mau" });
+            const todosMobs = [...mobsBom, ...mobsMau];
+
+            for (const mob of todosMobs) {
+                try {
+                    if (!mob.isValid()) continue;
+                    const loc = mob.location;
+                    const bx = Math.floor(loc.x);
+                    const by = Math.floor(loc.y);
+                    const bz = Math.floor(loc.z);
+
+                    const blocoAbaixo = dim.getBlock({ x: bx, y: by - 1, z: bz });
+                    const blocoEm = dim.getBlock({ x: bx, y: by, z: bz });
+
+                    if (blocoAbaixo && (blocoAbaixo.typeId === "minecraft:sand" ||
+                        blocoAbaixo.typeId === "minecraft:red_sand")) {
+                        try {
+                            const saude = mob.getComponent("minecraft:health");
+                            if (saude && saude.currentValue < saude.effectiveMax) {
+                                saude.setCurrentValue(
+                                    Math.min(
+                                        saude.currentValue + CACTUS_CONFIG.regeneracaoAreia,
+                                        saude.effectiveMax
+                                    )
+                                );
+                                dim.spawnParticle("minecraft:villager_happy", {
+                                    x: loc.x,
+                                    y: loc.y + 1,
+                                    z: loc.z,
+                                });
+                            }
+                        } catch (e) {}
+                    }
+
+                    if (blocoEm && (blocoEm.typeId === "minecraft:water" ||
+                        blocoEm.typeId === "minecraft:flowing_water")) {
+                        try {
+                            mob.applyDamage(1, { cause: "drowning" });
+                        } catch (e) {}
+                    }
+
+                    if (mob.isValid() && Math.random() < CACTUS_CONFIG.chancePlantarCactus) {
+                        try {
+                            const blocoAtras = dim.getBlock({ x: bx, y: by, z: bz });
+                            const blocoBase = dim.getBlock({ x: bx, y: by - 1, z: bz });
+
+                            if (blocoAtras && blocoAtras.typeId === "minecraft:air" &&
+                                blocoBase && blocoBase.typeId === "minecraft:sand") {
+                                const adj1 = dim.getBlock({ x: bx + 1, y: by, z: bz });
+                                const adj2 = dim.getBlock({ x: bx - 1, y: by, z: bz });
+                                const adj3 = dim.getBlock({ x: bx, y: by, z: bz + 1 });
+                                const adj4 = dim.getBlock({ x: bx, y: by, z: bz - 1 });
+
+                                const temBlocoAdjacente =
+                                    (adj1 && adj1.typeId !== "minecraft:air") ||
+                                    (adj2 && adj2.typeId !== "minecraft:air") ||
+                                    (adj3 && adj3.typeId !== "minecraft:air") ||
+                                    (adj4 && adj4.typeId !== "minecraft:air");
+
+                                if (!temBlocoAdjacente) {
+                                    blocoAtras.setType("minecraft:cactus");
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                } catch (e) {}
+            }
+        } catch (e) {}
+    }
+}, CACTUS_CONFIG.intervaloAmbiental);

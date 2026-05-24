@@ -14,7 +14,7 @@
                 "default": "geometry.rifle_sniper"
             },
             "render_controllers": [
-                "controller.render.default"
+                "controller.render.item_default"
             ]
         }
     }

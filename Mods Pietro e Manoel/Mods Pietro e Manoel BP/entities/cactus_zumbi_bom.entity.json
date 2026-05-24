@@ -1,0 +1,111 @@
+{
+    "format_version": "1.16.0",
+    "minecraft:entity": {
+        "description": {
+            "identifier": "cactus_zumbi:cactus_zumbi_bom",
+            "is_spawnable": false,
+            "is_summonable": true,
+            "runtime_identifier": "minecraft:zombie"
+        },
+        "components": {
+            "minecraft:type_family": {
+                "family": ["cactus_zumbi", "mob"]
+            },
+            "minecraft:collision_box": {
+                "width": 0.6,
+                "height": 1.7
+            },
+            "minecraft:health": {
+                "value": 30,
+                "max": 30
+            },
+            "minecraft:attack": {
+                "damage": 5
+            },
+            "minecraft:physics": {},
+            "minecraft:pushable": {
+                "is_pushable": true,
+                "is_pushable_by_piston": true
+            },
+            "minecraft:knockback_resistance": {
+                "value": 0.2
+            },
+            "minecraft:scale": {
+                "value": 1.0
+            },
+            "minecraft:movement": {
+                "value": 0.25
+            },
+            "minecraft:movement.basic": {},
+            "minecraft:navigation.walk": {
+                "can_walk": true,
+                "avoid_water": true,
+                "avoid_damage_blocks": false
+            },
+            "minecraft:jump.static": {},
+            "minecraft:follow_range": {
+                "value": 24,
+                "max": 24
+            },
+            "minecraft:damage_sensor": {
+                "triggers": [
+                    {
+                        "cause": "contact",
+                        "deals_damage": false
+                    }
+                ]
+            },
+            "minecraft:nameable": {},
+            "minecraft:experience_reward": {
+                "on_death": "query.last_hit_by_player ? 10 : 0"
+            },
+            "minecraft:loot": {
+                "table": "loot_tables/entities/cactus_zumbi_bom.json"
+            },
+            "minecraft:despawn": {
+                "despawn_from_distance": {
+                    "max_distance": 128,
+                    "min_distance": 54
+                }
+            },
+            "minecraft:behavior.float": {
+                "priority": 0
+            },
+            "minecraft:behavior.hurt_by_target": {
+                "priority": 1
+            },
+            "minecraft:behavior.nearest_attackable_target": {
+                "priority": 2,
+                "entity_types": [
+                    {
+                        "filters": {
+                            "any_of": [
+                                { "test": "is_family", "subject": "other", "value": "monster" },
+                                { "test": "is_family", "subject": "other", "value": "undead" }
+                            ]
+                        },
+                        "max_dist": 16
+                    }
+                ],
+                "must_see": true,
+                "reselect_targets": true
+            },
+            "minecraft:behavior.melee_attack": {
+                "priority": 3,
+                "speed_multiplier": 1.2,
+                "track_target": true
+            },
+            "minecraft:behavior.random_stroll": {
+                "priority": 5,
+                "speed_multiplier": 0.8
+            },
+            "minecraft:behavior.look_at_player": {
+                "priority": 6,
+                "look_distance": 8.0
+            },
+            "minecraft:behavior.random_look_around": {
+                "priority": 7
+            }
+        }
+    }
+}

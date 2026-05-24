@@ -1,0 +1,28 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:client_entity": {
+        "description": {
+            "identifier": "cactus_zumbi:pocao_projetil",
+            "materials": {
+                "default": "entity_alphatest"
+            },
+            "textures": {
+                "default": "textures/entity/pocao_projetil"
+            },
+            "geometry": {
+                "default": "geometry.pocao_projetil"
+            },
+            "render_controllers": [
+                "controller.render.pocao_projetil"
+            ],
+            "animations": {
+                "spin": "animation.pocao_projetil.spin"
+            },
+            "scripts": {
+                "animate": [
+                    "spin"
+                ]
+            }
+        }
+    }
+}

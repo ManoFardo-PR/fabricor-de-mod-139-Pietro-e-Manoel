@@ -1,0 +1,28 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:client_entity": {
+        "description": {
+            "identifier": "pistola_laser:sniper_projetil",
+            "materials": {
+                "default": "entity_emissive_alpha"
+            },
+            "textures": {
+                "default": "textures/entity/sniper_projetil"
+            },
+            "geometry": {
+                "default": "geometry.laser_projetil"
+            },
+            "render_controllers": [
+                "controller.render.laser_projetil"
+            ],
+            "animations": {
+                "spin": "animation.laser_projetil.spin"
+            },
+            "scripts": {
+                "animate": [
+                    "spin"
+                ]
+            }
+        }
+    }
+}

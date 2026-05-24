@@ -1,0 +1,31 @@
+{
+    "format_version": "1.21.10",
+    "minecraft:item": {
+        "description": {
+            "identifier": "cactus_zumbi:pocao_cactus",
+            "menu_category": {
+                "category": "items",
+                "group": "itemGroup.name.potion"
+            }
+        },
+        "components": {
+            "minecraft:max_stack_size": 16,
+            "minecraft:throwable": {
+                "do_swing_animation": true,
+                "launch_power_scale": 1.0,
+                "max_launch_power": 1.0
+            },
+            "minecraft:projectile": {
+                "projectile_entity": "cactus_zumbi:pocao_projetil"
+            },
+            "minecraft:icon": {
+                "textures": {
+                    "default": "pocao_cactus"
+                }
+            },
+            "minecraft:display_name": {
+                "value": "item.cactus_zumbi:pocao_cactus.name"
+            }
+        }
+    }
+}

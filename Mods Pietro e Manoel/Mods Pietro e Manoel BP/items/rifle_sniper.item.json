@@ -1,0 +1,39 @@
+{
+    "format_version": "1.21.10",
+    "minecraft:item": {
+        "description": {
+            "identifier": "pistola_laser:rifle_sniper",
+            "menu_category": {
+                "category": "equipment",
+                "group": "itemGroup.name.sword"
+            }
+        },
+        "components": {
+            "minecraft:max_stack_size": 1,
+            "minecraft:shooter": {
+                "ammunition": [
+                    {
+                        "item": "pistola_laser:municao_sniper",
+                        "use_offhand": true,
+                        "search_inventory": true,
+                        "use_in_creative": true
+                    }
+                ],
+                "max_draw_duration": 1.0,
+                "scale_power_by_draw_duration": false,
+                "charge_on_draw": false
+            },
+            "minecraft:use_modifiers": {
+                "use_duration": 3.0,
+                "movement_modifier": 0.95
+            },
+            "minecraft:durability": {
+                "max_durability": 300
+            },
+            "minecraft:icon": "rifle_sniper",
+            "minecraft:display_name": {
+                "value": "item.pistola_laser:rifle_sniper.name"
+            }
+        }
+    }
+}

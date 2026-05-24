@@ -28,6 +28,21 @@
         },
         "botas_slime": {
             "textures": "textures/items/botas_slime"
+        },
+        "pistola_laser": {
+            "textures": "textures/items/pistola_laser"
+        },
+        "municao_laser": {
+            "textures": "textures/items/municao_laser"
+        },
+        "rifle_sniper": {
+            "textures": "textures/items/rifle_sniper"
+        },
+        "municao_sniper": {
+            "textures": "textures/items/municao_sniper"
+        },
+        "pocao_cactus": {
+            "textures": "textures/items/pocao_cactus"
         }
     }
 }

@@ -1,0 +1,26 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "cactus_zumbi:pocao_cactus_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "ORC",
+            "GVG",
+            " S "
+        ],
+        "key": {
+            "O": { "item": "minecraft:spider_eye" },
+            "R": { "item": "minecraft:redstone" },
+            "C": { "item": "minecraft:cactus" },
+            "G": { "item": "minecraft:rotten_flesh" },
+            "V": { "item": "minecraft:glass_bottle" },
+            "S": { "item": "minecraft:slime_ball" }
+        },
+        "result": {
+            "item": "cactus_zumbi:pocao_cactus",
+            "count": 2
+        }
+    }
+}

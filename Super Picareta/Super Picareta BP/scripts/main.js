@@ -450,8 +450,8 @@ const FLARE_CONFIG = {
     duration: { land: 1200, water: 600 },
     trail: { enabled: true, lightLevel: 14 },
     bounce: {
-        maxBounces: 2,
-        default: { velocityLoss: 0.3, minVertical: 0.1, maxVertical: -0.1 },
+        maxBounces: 1,
+        default: { velocityLoss: 0.2, minVertical: 0.05, maxVertical: -0.05 },
         exceptions: {
             "minecraft:snow_layer":    { action: "land", halfDuration: true },
             "minecraft:snow":          { action: "land", halfDuration: true },
