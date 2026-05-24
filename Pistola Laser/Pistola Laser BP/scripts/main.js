@@ -29,6 +29,7 @@ const CONFIG = {
 // ==== ESTADO ====
 const jogadorMirando = new Map();       // player.id -> boolean
 const jogadorInicioMira = new Map();    // player.id -> tick de inicio
+const jogadorAvisadoZoom = new Set();   // player.id - ja recebeu aviso de Beta APIs
 
 // ==== FUNCAO: CONTAR MUNICAO ====
 function contarMunicao(jogador, tipoMunicao) {
@@ -63,7 +64,14 @@ function ativarZoom(jogador) {
                 easeType: "Linear"
             }
         });
-    } catch (e) {}
+    } catch (e) {
+        if (!jogadorAvisadoZoom.has(jogador.id)) {
+            jogadorAvisadoZoom.add(jogador.id);
+            try {
+                jogador.sendMessage("§cZoom indisponível - habilite Beta APIs nas configurações do mundo");
+            } catch (e2) {}
+        }
+    }
 }
 
 // ==== FUNCAO: DESATIVAR ZOOM ====
@@ -255,4 +263,5 @@ world.afterEvents.entityHitEntity.subscribe((evento) => {
 world.afterEvents.playerLeave.subscribe((evento) => {
     jogadorMirando.delete(evento.playerId);
     jogadorInicioMira.delete(evento.playerId);
+    jogadorAvisadoZoom.delete(evento.playerId);
 });

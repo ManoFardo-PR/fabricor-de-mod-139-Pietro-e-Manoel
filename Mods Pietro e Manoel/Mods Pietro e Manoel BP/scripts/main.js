@@ -456,6 +456,29 @@ const landedFlares = new Map();
 const pendingLightRemovals = [];
 const MAX_LIGHT_REMOVAL_RETRIES = 600;
 
+// --- [FLARE] Persistencia (sobrevive a /reload e recarga de mundo) ---
+const FLARE_PROP_KEY = "escavadora:landed_flares";
+let landedFlaresLoaded = false;
+
+function salvarLandedFlares() {
+    try {
+        const arr = Array.from(landedFlares.entries());
+        world.setDynamicProperty(FLARE_PROP_KEY, JSON.stringify(arr));
+    } catch (e) {}
+}
+
+function carregarLandedFlares() {
+    try {
+        const raw = world.getDynamicProperty(FLARE_PROP_KEY);
+        if (typeof raw !== "string" || !raw) return;
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return;
+        for (const [k, v] of arr) {
+            if (!landedFlares.has(k)) landedFlares.set(k, v);
+        }
+    } catch (e) {}
+}
+
 // ====  Enfileira remocao de luz para retry garantido  ====
 function queueLightRemoval(dimId, pos) {
     if (!pos) return;
@@ -672,6 +695,7 @@ function flareLand(dimension, loc, halfDuration) {
             const old = landedFlares.get(oldestKey);
             queueLightRemoval(old.dimId, old.lightPos);
             landedFlares.delete(oldestKey);
+            salvarLandedFlares();
         }
     }
 
@@ -699,6 +723,7 @@ function flareLand(dimension, loc, halfDuration) {
         loc: { x: loc.x, y: loc.y, z: loc.z },
         lightPos: lightPos
     });
+    salvarLandedFlares();
 }
 
 // Flare: projectileHitBlock (bounce + pouso)
@@ -865,6 +890,7 @@ function updateLandedFlares(now) {
             if (age > maxDuration) {
                 queueLightRemoval(data.dimId, data.lightPos);
                 landedFlares.delete(key);
+                salvarLandedFlares();
             }
         } catch (e) {}
     }
@@ -872,6 +898,12 @@ function updateLandedFlares(now) {
 
 system.runInterval(() => {
     const now = system.currentTick;
+
+    // Lazy-load do estado persistido no primeiro tick (sobrevive a /reload)
+    if (!landedFlaresLoaded) {
+        carregarLandedFlares();
+        landedFlaresLoaded = true;
+    }
 
     const allDimNames = ["overworld", "nether", "the_end"];
     const flareEntitiesMap = new Map();
@@ -1463,6 +1495,7 @@ const LASER_CONFIG = {
 // ==== ESTADO ====
 const laserJogadorMirando = new Map();       // player.id -> boolean
 const laserJogadorInicioMira = new Map();    // player.id -> tick de inicio
+const laserJogadorAvisadoZoom = new Set();   // player.id - ja recebeu aviso de Beta APIs
 
 function laserContarMunicao(jogador, tipoMunicao) {
     try {
@@ -1493,7 +1526,14 @@ function laserAtivarZoom(jogador) {
                 easeType: "Linear"
             }
         });
-    } catch (e) {}
+    } catch (e) {
+        if (!laserJogadorAvisadoZoom.has(jogador.id)) {
+            laserJogadorAvisadoZoom.add(jogador.id);
+            try {
+                jogador.sendMessage("§cZoom indisponível - habilite Beta APIs nas configurações do mundo");
+            } catch (e2) {}
+        }
+    }
 }
 
 function laserDesativarZoom(jogador) {
@@ -1655,6 +1695,7 @@ world.afterEvents.entityHitEntity.subscribe((evento) => {
 world.afterEvents.playerLeave.subscribe((evento) => {
     laserJogadorMirando.delete(evento.playerId);
     laserJogadorInicioMira.delete(evento.playerId);
+    laserJogadorAvisadoZoom.delete(evento.playerId);
 });
 
 // ████████████████████████████████████████████████████████████████

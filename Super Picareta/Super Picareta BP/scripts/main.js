@@ -476,6 +476,29 @@ const FLARE_CONFIG = {
 const flightFlares = new Map();  // entityId -> { lastPos, bounceCount, spawnTick, dimName, lightPos }
 const landedFlares = new Map();  // "x,y,z" -> { landTick, inWater, halfDuration, dimId, loc, lightPos }
 
+// --- [FLARE] Persistencia (sobrevive a /reload e recarga de mundo) ---
+const FLARE_PROP_KEY = "escavadora:landed_flares";
+let landedFlaresLoaded = false;
+
+function salvarLandedFlares() {
+    try {
+        const arr = Array.from(landedFlares.entries());
+        world.setDynamicProperty(FLARE_PROP_KEY, JSON.stringify(arr));
+    } catch (e) {}
+}
+
+function carregarLandedFlares() {
+    try {
+        const raw = world.getDynamicProperty(FLARE_PROP_KEY);
+        if (typeof raw !== "string" || !raw) return;
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return;
+        for (const [k, v] of arr) {
+            if (!landedFlares.has(k)) landedFlares.set(k, v);
+        }
+    } catch (e) {}
+}
+
 // --- [FLARE] Funcoes auxiliares de iluminacao ---
 
 function placeSingleLight(dimension, loc) {
@@ -667,6 +690,7 @@ function flareLand(dimension, loc, halfDuration) {
                 removeSingleLight(oldDim, old.lightPos);
             } catch (e) {}
             landedFlares.delete(oldestKey);
+            salvarLandedFlares();
         }
     }
 
@@ -694,6 +718,7 @@ function flareLand(dimension, loc, halfDuration) {
         loc: { x: loc.x, y: loc.y, z: loc.z },
         lightPos: lightPos
     });
+    salvarLandedFlares();
 }
 
 // --- [FLARE] Evento: projectileHitBlock (bounce + pouso) ---
@@ -876,8 +901,9 @@ function updateLandedFlares(now) {
             // Expirou?
             if (age > maxDuration) {
                 const removed = removeSingleLight(dim, data.lightPos);
-                if (removed || age > maxDuration + 400) {
+                if (removed || age > maxDuration + 1200) {
                     landedFlares.delete(key);
+                    salvarLandedFlares();
                 }
             }
         } catch (e) {}
@@ -886,6 +912,12 @@ function updateLandedFlares(now) {
 
 system.runInterval(() => {
     const now = system.currentTick;
+
+    // Lazy-load do estado persistido no primeiro tick (sobrevive a /reload)
+    if (!landedFlaresLoaded) {
+        carregarLandedFlares();
+        landedFlaresLoaded = true;
+    }
 
     // Coletar entidades vivas + auto-registrar
     const allDimNames = ["overworld", "nether", "the_end"];

@@ -99,6 +99,17 @@ Para criar uma nova entidade/mob, seguir este fluxo obrigatorio:
 - Testar funcionalidades no jogo (efeitos, receitas, entidades)
 - Checar Content Log no Minecraft para erros de JSON
 
+### Limitacoes conhecidas do Bedrock Engine
+- **Sensibilidade do mouse nao escala com FOV**: ao usar zoom via `camera.setFov` (ex: Rifle Sniper com fovZoom 15), o pan continua na velocidade do FOV normal. Isso e limitacao da plataforma - nao tem fix por addon. Para reduzir a sensacao de pan rapido, aumentar `fovZoom` para 25-30 em `Pistola Laser BP/scripts/main.js` (e replicar no script unificado `Mods Pietro e Manoel BP/scripts/main.js` na constante `LASER_CONFIG.fovZoom`).
+- **Camera API exige Beta APIs**: o zoom usa `jogador.camera.setFov`, que so funciona com "Habilitar Beta APIs" ativado nas configuracoes do mundo. Sem Beta APIs, o usuario recebe `§cZoom indisponível - habilite Beta APIs nas configurações do mundo` (apenas na primeira tentativa por sessao).
+
+### Ativacao de packs - regra critica
+Apenas **um** dos seguintes deve estar ativo por mundo, **nunca os dois ao mesmo tempo**:
+- O pack unificado `Mods Pietro e Manoel` (BP + RP)
+- Os 5 packs modulares: `Super Picareta`, `Armadura de Slime`, `Multiplicador`, `Pistola Laser`, `Cactus Zumbi`
+
+Ativar ambos causa double-subscribe de eventos (efeitos duplicados, `light_block` colocados em dobro, mensagens repetidas, etc.).
+
 ## Idioma
 - Todo o codigo, comentarios, nomes de variaveis e documentacao devem ser em **portugues brasileiro**
 - Excecao: palavras-chave do JavaScript/JSON e identificadores da API Minecraft permanecem em ingles
