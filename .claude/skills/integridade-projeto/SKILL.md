@@ -9,6 +9,40 @@ argument-hint: "[escopo: nome-do-addon | unificado | todos]"
 Aplique os 5 protocolos abaixo ao escopo definido em `$ARGUMENTS`.
 Cada protocolo tem **regras obrigatorias** (violar = bloqueia release) e **regras recomendadas**.
 
+## Fluxo de Trabalho Obrigatorio para Mods
+
+Toda criacao/edicao de mod segue 4 fases em ordem. Cada fase tem gatilho proprio e
+nao pode ser pulada sem autorizacao explicita do usuario.
+
+### Fase 1 - Desenvolvimento Isolado
+- Trabalhar APENAS na pasta modular do mod (ex: `Pistola Laser/`, `Cactus Zumbi/`)
+- Nao tocar em `Mods Pietro e Manoel/` durante essa fase
+- Skills aplicaveis: `criar-mob`, `comportamento-mob`, `planejar-entidade`, `revisar-mod`, `varredura-bugs`
+
+### Fase 2 - Validacao In-Game (responsabilidade do usuario)
+- Usuario ativa APENAS o pack modular no mundo Minecraft (nunca junto com o unificado)
+- Beta APIs habilitadas
+- Usuario testa todas as funcionalidades ate confirmar zero bugs
+- So apos o "ok" explicito do usuario, passar para Fase 3
+
+### Fase 3 - Integracao no Pack Unificado
+- Disparada SOMENTE por solicitacao explicita ("integre X no unificado", "sincronize X")
+- Seguir o passo-a-passo detalhado em `INTEGRACAO-UNIFICADO.md` (raiz do projeto)
+- Aplicar os 4 protocolos desta skill em ordem (Paridade -> Identificadores -> Scripts -> Validacao)
+
+### Fase 4 - Validacao de Paridade (obrigatoria ao final da Fase 3)
+- Executar: `node .claude/skills/integridade-projeto/auditar_paridade.mjs`
+- Executar: `node --check "Mods Pietro e Manoel/Mods Pietro e Manoel BP/scripts/main.js"`
+- Resultado esperado: `0 BLOQUEIOS` + sintaxe valida
+- Se houver bloqueios novos, corrigir antes de declarar integracao concluida
+
+### Pontos de parada obrigatorios (Agent pergunta antes de prosseguir)
+- Colisao de chave em `item_texture.json` / `terrain_texture.json` / `.lang` com valor diferente
+- Colisao de identifier no unificado com componentes diferentes
+- Prefixo de namespace ambiguo para mod novo
+- Hash diferente em arquivo ja paritario (drift bidirecional suspeito)
+- Variavel global sem prefixo claro durante integracao de script
+
 ## Protocolo 1 - Paridade de Pacotes Unificados
 
 Quando o projeto tem um pack consolidado (ex: `Mods Pietro e Manoel`) que reune addons individuais, o pack unificado e a **uniao exata** de todos os addons modulares.
