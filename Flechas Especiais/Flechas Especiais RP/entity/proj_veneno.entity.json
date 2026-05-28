@@ -1,0 +1,12 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:client_entity": {
+        "description": {
+            "identifier": "flechas_especiais:proj_veneno",
+            "materials": { "default": "entity_alphatest" },
+            "textures": { "default": "textures/entity/arrows" },
+            "geometry": { "default": "geometry.arrow" },
+            "render_controllers": [ "controller.render.item_default" ]
+        }
+    }
+}

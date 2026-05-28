@@ -1,0 +1,23 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "flechas_especiais:flecha_veneno_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "F",
+            "A",
+            "O"
+        ],
+        "key": {
+            "F": { "item": "minecraft:fermented_spider_eye" },
+            "A": { "item": "minecraft:arrow" },
+            "O": { "item": "minecraft:spider_eye" }
+        },
+        "result": {
+            "item": "flechas_especiais:flecha_veneno",
+            "count": 8
+        }
+    }
+}

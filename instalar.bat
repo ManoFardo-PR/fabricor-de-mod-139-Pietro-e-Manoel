@@ -57,23 +57,26 @@ echo.
 echo   [7] Instalar TODOS os 5 modulares (1 a 5)
 echo   [8] Instalar TUDO (5 modulares + unificado)
 echo.
-echo   [9] Desinstalar TODOS (limpa todos os 6 packs)
+echo   [9] Desinstalar TODOS (limpa todos os packs)
+echo.
+echo   [A] Flechas Especiais (modular - novo)
 echo   [0] Sair
 echo.
 
 set "OPCAO="
 set /p "OPCAO=Digite o numero: "
 
-if "%OPCAO%"=="0" goto :sair
-if "%OPCAO%"=="1" goto :op_super_picareta
-if "%OPCAO%"=="2" goto :op_armadura_slime
-if "%OPCAO%"=="3" goto :op_multiplicador
-if "%OPCAO%"=="4" goto :op_pistola_laser
-if "%OPCAO%"=="5" goto :op_cactus_zumbi
-if "%OPCAO%"=="6" goto :op_unificado
-if "%OPCAO%"=="7" goto :op_todos_modulares
-if "%OPCAO%"=="8" goto :op_tudo
-if "%OPCAO%"=="9" goto :op_desinstalar_tudo
+if /i "%OPCAO%"=="0" goto :sair
+if /i "%OPCAO%"=="1" goto :op_super_picareta
+if /i "%OPCAO%"=="2" goto :op_armadura_slime
+if /i "%OPCAO%"=="3" goto :op_multiplicador
+if /i "%OPCAO%"=="4" goto :op_pistola_laser
+if /i "%OPCAO%"=="5" goto :op_cactus_zumbi
+if /i "%OPCAO%"=="6" goto :op_unificado
+if /i "%OPCAO%"=="7" goto :op_todos_modulares
+if /i "%OPCAO%"=="8" goto :op_tudo
+if /i "%OPCAO%"=="9" goto :op_desinstalar_tudo
+if /i "%OPCAO%"=="A" goto :op_flechas_especiais
 
 echo.
 echo [AVISO] Opcao invalida: "%OPCAO%"
@@ -161,6 +164,23 @@ call :install_pack "Cactus Zumbi"
 if errorlevel 1 goto :pause_e_volta
 echo.
 echo OK! No Minecraft, ative "Cactus Zumbi" (BP + RP) no mundo.
+echo Beta APIs precisam estar ligadas.
+echo Se voce ja tem "Mods Pietro e Manoel" ativo, DESATIVE antes - nao ative os dois.
+goto :pause_e_volta
+
+:: ============================================
+:: OPCAO A: Flechas Especiais (modular - novo)
+:: ============================================
+:op_flechas_especiais
+cls
+echo ============================================
+echo   Instalando: Flechas Especiais (modular)
+echo ============================================
+echo.
+call :install_pack "Flechas Especiais"
+if errorlevel 1 goto :pause_e_volta
+echo.
+echo OK! No Minecraft, ative "Flechas Especiais" (BP + RP) no mundo.
 echo Beta APIs precisam estar ligadas.
 echo Se voce ja tem "Mods Pietro e Manoel" ativo, DESATIVE antes - nao ative os dois.
 goto :pause_e_volta
@@ -271,6 +291,7 @@ call :uninstall_pack "Armadura de Slime"
 call :uninstall_pack "Multiplicador"
 call :uninstall_pack "Pistola Laser"
 call :uninstall_pack "Cactus Zumbi"
+call :uninstall_pack "Flechas Especiais"
 call :uninstall_pack "Mods Pietro e Manoel"
 echo.
 echo OK! Removidos todos os BPs e RPs do com.mojang.

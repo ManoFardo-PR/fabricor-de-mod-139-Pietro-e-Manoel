@@ -1,0 +1,29 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Flechas Especiais - Behavior",
+        "description": "Addon de 4 flechas customizadas (TNT, Veneno, Lerdeza, Paralisia) disparadas pelo arco vanilla",
+        "uuid": "8ef63a11-6e4d-473a-9b83-ba9c16247cc6",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "script",
+            "language": "javascript",
+            "uuid": "dcb6ba5a-a9d9-4403-bdd4-9a8176a08010",
+            "entry": "scripts/main.js",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "module_name": "@minecraft/server",
+            "version": "1.12.0"
+        },
+        {
+            "uuid": "feb22c29-4031-4283-91b1-a87437e983cc",
+            "version": [1, 0, 0]
+        }
+    ]
+}

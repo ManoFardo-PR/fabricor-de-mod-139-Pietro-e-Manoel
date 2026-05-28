@@ -190,6 +190,7 @@ Padronizacao que reduz colisoes e facilita pack unificado.
 | `pistola_laser` | Pistola Laser | ativo |
 | `cactus_zumbi` | Cactus Zumbi | ativo |
 | `multiplicador` | Multiplicador x10 | ativo |
+| `flechas_especiais` | Flechas Especiais | ativo |
 
 Ao criar novo addon, adicionar linha na tabela acima antes de qualquer outro arquivo.
 

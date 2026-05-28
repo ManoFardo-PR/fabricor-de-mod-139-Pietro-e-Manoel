@@ -1,0 +1,23 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "flechas_especiais:flecha_paralisia_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "G",
+            "A",
+            "R"
+        ],
+        "key": {
+            "G": { "item": "minecraft:glowstone_dust" },
+            "A": { "item": "minecraft:arrow" },
+            "R": { "item": "minecraft:redstone" }
+        },
+        "result": {
+            "item": "flechas_especiais:flecha_paralisia",
+            "count": 8
+        }
+    }
+}

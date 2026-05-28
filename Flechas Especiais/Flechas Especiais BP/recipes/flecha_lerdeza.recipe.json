@@ -1,0 +1,21 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "flechas_especiais:flecha_lerdeza_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            "I",
+            "A"
+        ],
+        "key": {
+            "I": { "item": "minecraft:packed_ice" },
+            "A": { "item": "minecraft:arrow" }
+        },
+        "result": {
+            "item": "flechas_especiais:flecha_lerdeza",
+            "count": 8
+        }
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "resource_pack_name": "Flechas Especiais",
+    "texture_name": "atlas.items",
+    "texture_data": {
+        "flecha_tnt": {
+            "textures": "textures/items/flecha_tnt"
+        },
+        "flecha_veneno": {
+            "textures": "textures/items/flecha_veneno"
+        },
+        "flecha_lerdeza": {
+            "textures": "textures/items/flecha_lerdeza"
+        },
+        "flecha_paralisia": {
+            "textures": "textures/items/flecha_paralisia"
+        }
+    }
+}

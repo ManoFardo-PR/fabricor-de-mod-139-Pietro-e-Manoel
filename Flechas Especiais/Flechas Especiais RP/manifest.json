@@ -1,0 +1,23 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "Flechas Especiais - Resources",
+        "description": "Texturas e definicoes visuais das 4 flechas customizadas",
+        "uuid": "feb22c29-4031-4283-91b1-a87437e983cc",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 21, 0]
+    },
+    "modules": [
+        {
+            "type": "resources",
+            "uuid": "d9562601-1a01-4136-8395-98cb782491d0",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "uuid": "8ef63a11-6e4d-473a-9b83-ba9c16247cc6",
+            "version": [1, 0, 0]
+        }
+    ]
+}
