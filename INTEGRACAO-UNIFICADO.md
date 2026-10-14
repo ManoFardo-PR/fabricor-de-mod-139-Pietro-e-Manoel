@@ -263,6 +263,7 @@ Append (nao reordenar), para minimizar diff em revisao.
 | Pistola Laser | `LASER_` (ex: `LASER_CONFIG`, `laserJogadorAvisadoZoom`) |
 | Cactus Zumbi | `CACTUS_` (ex: `CACTUS_CONFIG`, `cactusProcessedPocoes`) |
 | Flare/Sinalizador | `FLARE_` (ex: `FLARE_CONFIG`) |
+| Laser de Choque | `CHOQUE_` (ex: `CHOQUE_CONFIG`, `choqueDispositivos`) |
 | Multiplicador | `MULTI_` (sugerido se for adicionado) |
 | Armadura de Slime | `SLIME_ARMOR_` (sugerido se for adicionado) |
 
@@ -501,6 +502,8 @@ Fase 4 - Validacao
 | `pistola_laser` | Pistola Laser | `LASER_` |
 | `cactus_zumbi` | Cactus Zumbi | `CACTUS_` |
 | `multiplicador` | Multiplicador x10 | sem prefixo (poucos globals) |
+| `flechas_especiais` | Flechas Especiais | (a definir na integracao) |
+| `laser_choque` | Laser de Choque | `CHOQUE_` |
 
 ### C. UUIDs ja usados (NAO reutilizar)
 

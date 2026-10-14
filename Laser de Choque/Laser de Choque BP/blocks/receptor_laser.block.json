@@ -1,0 +1,41 @@
+{
+    "format_version": "1.21.10",
+    "minecraft:block": {
+        "description": {
+            "identifier": "laser_choque:receptor_laser",
+            "menu_category": {
+                "category": "none"
+            }
+        },
+        "components": {
+            "minecraft:geometry": "geometry.laser_choque.receptor_laser",
+            "minecraft:collision_box": {
+                "origin": [-5, 12, -5],
+                "size": [10, 4, 10]
+            },
+            "minecraft:selection_box": {
+                "origin": [-5, 12, -5],
+                "size": [10, 4, 10]
+            },
+            "minecraft:material_instances": {
+                "*": {
+                    "texture": "laser_choque_receptor",
+                    "render_method": "alpha_test"
+                },
+                "lente": {
+                    "texture": "laser_choque_lente_ativa",
+                    "render_method": "alpha_test"
+                }
+            },
+            "minecraft:destructible_by_mining": {
+                "seconds_to_destroy": 0.5
+            },
+            "minecraft:destructible_by_explosion": {
+                "explosion_resistance": 3.0
+            },
+            "minecraft:light_emission": 7,
+            "minecraft:loot": "loot_tables/empty.json",
+            "minecraft:map_color": "#2b2b2b"
+        }
+    }
+}

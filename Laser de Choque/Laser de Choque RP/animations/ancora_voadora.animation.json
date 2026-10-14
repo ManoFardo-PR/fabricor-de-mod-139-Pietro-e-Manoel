@@ -1,0 +1,17 @@
+{
+    "format_version": "1.8.0",
+    "animations": {
+        "animation.laser_choque.ancora_voadora.spin": {
+            "loop": true,
+            "animation_length": 0.5,
+            "bones": {
+                "root": {
+                    "rotation": {
+                        "0.0": [0, 0, 0],
+                        "0.5": [0, 360, 0]
+                    }
+                }
+            }
+        }
+    }
+}

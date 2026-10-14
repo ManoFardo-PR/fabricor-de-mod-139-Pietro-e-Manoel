@@ -33,7 +33,7 @@ NomeDoAddon/
 ```
 
 ## Convencoes de Nomenclatura
-- Namespaces existentes: `escavadora:`, `slime_armor:`, `multiplicador:`
+- Namespaces existentes: `escavadora:`, `slime_armor:`, `multiplicador:`, `pistola_laser:`, `cactus_zumbi:`, `flechas_especiais:`, `laser_choque:`
 - Para novos addons: usar namespace em snake_case (ex: `meu_addon:nome_item`)
 - Arquivos JSON: `nome_item.tipo.json` (ex: `capacete_slime.item.json`)
 - Identificadores: `namespace:nome_em_snake_case`

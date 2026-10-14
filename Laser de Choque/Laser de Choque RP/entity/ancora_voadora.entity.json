@@ -1,0 +1,28 @@
+{
+    "format_version": "1.10.0",
+    "minecraft:client_entity": {
+        "description": {
+            "identifier": "laser_choque:ancora_voadora",
+            "materials": {
+                "default": "entity_emissive_alpha"
+            },
+            "textures": {
+                "default": "textures/entity/ancora_voadora"
+            },
+            "geometry": {
+                "default": "geometry.laser_choque.ancora_voadora"
+            },
+            "render_controllers": [
+                "controller.render.laser_choque.ancora_voadora"
+            ],
+            "animations": {
+                "spin": "animation.laser_choque.ancora_voadora.spin"
+            },
+            "scripts": {
+                "animate": [
+                    "spin"
+                ]
+            }
+        }
+    }
+}

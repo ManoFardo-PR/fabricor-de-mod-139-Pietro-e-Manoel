@@ -1,0 +1,18 @@
+{
+    "resource_pack_name": "Laser de Choque",
+    "texture_name": "atlas.terrain",
+    "texture_data": {
+        "laser_choque_base": {
+            "textures": "textures/blocks/laser_choque_base"
+        },
+        "laser_choque_lente": {
+            "textures": "textures/blocks/laser_choque_lente"
+        },
+        "laser_choque_lente_ativa": {
+            "textures": "textures/blocks/laser_choque_lente_ativa"
+        },
+        "laser_choque_receptor": {
+            "textures": "textures/blocks/laser_choque_receptor"
+        }
+    }
+}

@@ -191,6 +191,7 @@ Padronizacao que reduz colisoes e facilita pack unificado.
 | `cactus_zumbi` | Cactus Zumbi | ativo |
 | `multiplicador` | Multiplicador x10 | ativo |
 | `flechas_especiais` | Flechas Especiais | ativo |
+| `laser_choque` | Laser de Choque | ativo |
 
 Ao criar novo addon, adicionar linha na tabela acima antes de qualquer outro arquivo.
 

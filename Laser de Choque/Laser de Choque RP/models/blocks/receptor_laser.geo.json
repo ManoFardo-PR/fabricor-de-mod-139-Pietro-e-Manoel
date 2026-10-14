@@ -1,0 +1,54 @@
+{
+    "format_version": "1.12.0",
+    "minecraft:geometry": [
+        {
+            "description": {
+                "identifier": "geometry.laser_choque.receptor_laser",
+                "texture_width": 32,
+                "texture_height": 32,
+                "visible_bounds_width": 1,
+                "visible_bounds_height": 1,
+                "visible_bounds_offset": [0, 0.5, 0]
+            },
+            "bones": [
+                {
+                    "name": "corpo",
+                    "pivot": [0, 16, 0],
+                    "cubes": [
+                        {
+                            "origin": [-5, 13, -5],
+                            "size": [10, 3, 10],
+                            "uv": {
+                                "up":    { "uv": [0, 0],   "uv_size": [10, 10] },
+                                "down":  { "uv": [10, 0],  "uv_size": [10, 10] },
+                                "north": { "uv": [0, 10],  "uv_size": [10, 3] },
+                                "south": { "uv": [10, 10], "uv_size": [10, 3] },
+                                "east":  { "uv": [20, 10], "uv_size": [10, 3] },
+                                "west":  { "uv": [0, 13],  "uv_size": [10, 3] }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "lente",
+                    "parent": "corpo",
+                    "pivot": [0, 13, 0],
+                    "cubes": [
+                        {
+                            "origin": [-2, 12, -2],
+                            "size": [4, 1, 4],
+                            "uv": {
+                                "up":    { "uv": [0, 0], "uv_size": [4, 4], "material_instance": "lente" },
+                                "down":  { "uv": [4, 0], "uv_size": [4, 4], "material_instance": "lente" },
+                                "north": { "uv": [0, 4], "uv_size": [4, 1], "material_instance": "lente" },
+                                "south": { "uv": [4, 4], "uv_size": [4, 1], "material_instance": "lente" },
+                                "east":  { "uv": [8, 4], "uv_size": [4, 1], "material_instance": "lente" },
+                                "west":  { "uv": [0, 5], "uv_size": [4, 1], "material_instance": "lente" }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

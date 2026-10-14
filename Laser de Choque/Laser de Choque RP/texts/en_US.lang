@@ -1,0 +1,3 @@
+tile.laser_choque:base_laser.name=Shock Laser Base
+tile.laser_choque:receptor_laser.name=Shock Laser Receiver
+entity.laser_choque:ancora_voadora.name=Shock Laser Anchor

@@ -54,12 +54,13 @@ echo   [4] Pistola Laser (modular)
 echo   [5] Cactus Zumbi (modular)
 echo   [6] Mods Pietro e Manoel (UNIFICADO - todos os 5 acima juntos)
 echo.
-echo   [7] Instalar TODOS os 5 modulares (1 a 5)
-echo   [8] Instalar TUDO (5 modulares + unificado)
+echo   [7] Instalar TODOS os 7 modulares (1 a 5 + A + B)
+echo   [8] Instalar TUDO (7 modulares + unificado)
 echo.
 echo   [9] Desinstalar TODOS (limpa todos os packs)
 echo.
 echo   [A] Flechas Especiais (modular - novo)
+echo   [B] Laser de Choque (modular - novo)
 echo   [0] Sair
 echo.
 
@@ -77,6 +78,7 @@ if /i "%OPCAO%"=="7" goto :op_todos_modulares
 if /i "%OPCAO%"=="8" goto :op_tudo
 if /i "%OPCAO%"=="9" goto :op_desinstalar_tudo
 if /i "%OPCAO%"=="A" goto :op_flechas_especiais
+if /i "%OPCAO%"=="B" goto :op_laser_choque
 
 echo.
 echo [AVISO] Opcao invalida: "%OPCAO%"
@@ -186,6 +188,23 @@ echo Se voce ja tem "Mods Pietro e Manoel" ativo, DESATIVE antes - nao ative os 
 goto :pause_e_volta
 
 :: ============================================
+:: OPCAO B: Laser de Choque (modular - novo)
+:: ============================================
+:op_laser_choque
+cls
+echo ============================================
+echo   Instalando: Laser de Choque (modular)
+echo ============================================
+echo.
+call :install_pack "Laser de Choque"
+if errorlevel 1 goto :pause_e_volta
+echo.
+echo OK! No Minecraft, ative "Laser de Choque" (BP + RP) no mundo.
+echo Beta APIs precisam estar ligadas.
+echo Se voce ja tem "Mods Pietro e Manoel" ativo, DESATIVE antes - nao ative os dois.
+goto :pause_e_volta
+
+:: ============================================
 :: OPCAO 6: Mods Pietro e Manoel (UNIFICADO)
 :: ============================================
 :op_unificado
@@ -234,8 +253,14 @@ echo.
 call :install_pack "Cactus Zumbi"
 if errorlevel 1 goto :pause_e_volta
 echo.
-echo OK! Os 5 modulares foram instalados.
-echo No Minecraft, ative os 5 (BP + RP cada) no mundo.
+call :install_pack "Flechas Especiais"
+if errorlevel 1 goto :pause_e_volta
+echo.
+call :install_pack "Laser de Choque"
+if errorlevel 1 goto :pause_e_volta
+echo.
+echo OK! Os 7 modulares foram instalados.
+echo No Minecraft, ative os 7 (BP + RP cada) no mundo.
 echo Beta APIs precisam estar ligadas.
 echo.
 echo NUNCA ative junto com "Mods Pietro e Manoel" (unificado) -
@@ -248,7 +273,7 @@ goto :pause_e_volta
 :op_tudo
 cls
 echo ============================================
-echo   Instalando: TUDO (5 modulares + unificado)
+echo   Instalando: TUDO (7 modulares + unificado)
 echo ============================================
 echo.
 call :install_pack "Super Picareta"
@@ -266,10 +291,16 @@ echo.
 call :install_pack "Cactus Zumbi"
 if errorlevel 1 goto :pause_e_volta
 echo.
+call :install_pack "Flechas Especiais"
+if errorlevel 1 goto :pause_e_volta
+echo.
+call :install_pack "Laser de Choque"
+if errorlevel 1 goto :pause_e_volta
+echo.
 call :install_pack "Mods Pietro e Manoel"
 if errorlevel 1 goto :pause_e_volta
 echo.
-echo OK! Todos os 6 packs estao instalados no disco.
+echo OK! Todos os 8 packs estao instalados no disco.
 echo.
 echo IMPORTANTE: No Minecraft, ative APENAS UM grupo:
 echo   - OU os 5 packs modulares
@@ -292,6 +323,7 @@ call :uninstall_pack "Multiplicador"
 call :uninstall_pack "Pistola Laser"
 call :uninstall_pack "Cactus Zumbi"
 call :uninstall_pack "Flechas Especiais"
+call :uninstall_pack "Laser de Choque"
 call :uninstall_pack "Mods Pietro e Manoel"
 echo.
 echo OK! Removidos todos os BPs e RPs do com.mojang.
