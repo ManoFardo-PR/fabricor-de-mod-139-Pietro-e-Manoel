@@ -30,7 +30,7 @@ basta trocar o valor - o resto do documento se ajusta.
 | D4 | Prefixo no script unificado | `CHOQUE_` | `LASER_CHOQUE_` (evitar: confunde com `LASER_` da Pistola) |
 | D5 | Base e receptor sao **blocos** customizados (nao entidades) | blocos | entidades (pior: despawn, piston, persistencia manual) |
 | D6 | Feixe visual no MVP | **particulas** (`minecraft:endrod`) | entidade emissiva esticada (backlog v1.1) |
-| D7 | Quem colocou o dispositivo **nao** toma choque | `imuneDono: true` | `false` (todos tomam) |
+| D7 | Quem colocou o dispositivo toma choque como todo mundo (revertido em 2026-10-14 apos teste: o dono queria sentir o choque) | `imuneDono: false` | `true` (dono imune) |
 | D8 | Dano do choque | 2 (1 coracao) a cada 10 ticks | ajustavel em `CONFIG.dano` |
 | D9 | Altura maxima de busca do teto | 32 blocos | - |
 | D10 | Agua **nao** bloqueia o feixe; qualquer bloco solido bloqueia | - | `aguaBloqueia: true` |
@@ -701,3 +701,54 @@ H2 e H6 se verificam em 30 segundos in-game (`/summon` e `/playsound`).
 - H2 (entidade sem `runtime_identifier` renderiza?) e H6 (nomes de sons).
 - `itemGroup.name.redstoneContainers` existe? Se nao, o bloco cai no fim da aba (nao quebra nada).
 - `isSolid`, `isFirstEvent` e `getGameMode()` na 1.12.0: todos com fallback seguro se ausentes.
+
+---
+
+## 20. Variantes (v1.1, 2026-10-14) - dois itens
+
+Apos o primeiro teste in-game o mod passou a ter **duas bases** (dois itens, duas receitas),
+**um receptor** com block state `laser_choque:tipo` (cor da lente) e **uma ancora** compartilhada.
+A base antiga `laser_choque:base_laser` foi removida (mod com 1 dia de vida; registros antigos
+salvos sem `tipo` sao carregados como `vermelho`).
+
+| | Laser de Choque Vermelho | Laser de Choque Relampago |
+|---|---|---|
+| Identifier da base | `laser_choque:base_laser_vermelho` | `laser_choque:base_laser_relampago` |
+| Textura da carcaca | cinza (`laser_choque_base`) | azulada (`laser_choque_receptor`) |
+| Lente acesa | `laser_choque_lente_vermelha` | `laser_choque_lente_amarela` |
+| Feixe | `minecraft:colored_flame_particle` tingida de vermelho via `MolangVariableMap.setColorRGB("variable.color")`, sem tremor | `minecraft:electric_spark_particle` com deslocamento aleatorio de +-0.25 bloco (visual de raio tremulando) + nucleo `minecraft:endrod` a cada bloco |
+| Faisca ambiente | `redstone_wire_dust_particle` (30%/frame) | `electric_spark_particle` (50%/frame) |
+| Choque | 2 de dano (causa lightning) a cada 10 ticks + lentidao I por 2 s | **raio real** (`minecraft:lightning_bolt` spawnado na entidade) a cada 40 ticks + lentidao II por 3 s. Se o raio falhar em spawnar, 3 de dano direto |
+| Receita | ` A ` / `RBR` / `III` (ametista, redstone, bloco de redstone, ferro) | ` A ` / `CLC` / `III` (ametista, cobre, para-raios, ferro) |
+| Luz da base acesa | 10 | 12 |
+
+Comum as duas: raio horizontal de choque 0.9, verificacao a cada 2 ticks com cooldown por
+entidade, knockback radial, `imuneDono: false`.
+
+### Aviso sobre o Relampago
+O raio real e um `minecraft:lightning_bolt` vanilla: alem do dano (~5) ele **poe fogo** na
+entidade e pode incendiar blocos inflamaveis ao redor, e **carrega creepers**. E o efeito
+desejado (espetaculo), mas nao usar dentro de construcao de madeira. `minecraft:lightning_bolt`
+foi adicionado a `tiposIgnorados` para o proprio raio nunca contar como "entidade no feixe".
+
+### Arquivos novos / alterados nesta versao
+- `BP/blocks/base_laser_vermelho.block.json`, `BP/blocks/base_laser_relampago.block.json` (novos; `base_laser.block.json` removido)
+- `BP/blocks/receptor_laser.block.json` (state `laser_choque:tipo` + permutacao)
+- `BP/recipes/base_laser_vermelho.recipe.json`, `base_laser_relampago.recipe.json` (novos; `base_laser.recipe.json` removido)
+- `BP/scripts/main.js` (tabela `VARIANTES`, `tipoDaBase()`, receptor via `BlockPermutation.resolve`)
+- `RP/textures/blocks/laser_choque_lente_vermelha.png`, `laser_choque_lente_amarela.png` (novas)
+- `RP/textures/terrain_texture.json`, `RP/blocks.json`, `RP/texts/*.lang`
+
+---
+
+## 21. Armadura isolante (v1.2, 2026-10-14)
+
+Qualquer entidade (jogador ou mob) vestindo **ao menos uma peca** de armadura de **diamante ou
+netherita** (capacete, peitoral, calca ou bota) fica imune ao feixe: sem dano, sem raio, sem
+lentidao, sem empurrao. Ao atravessar, aparece apenas uma faisca e um chiado curto a cada
+20 ticks, sinalizando que a armadura absorveu o choque.
+
+- Implementacao: `estaIsolado(ent)` le `minecraft:equippable` nos 4 slots e testa o `typeId`
+  contra `REGEX_ARMADURA_ISOLANTE`, montada a partir de `CONFIG.armaduraIsolante.materiais`.
+- Para mudar os materiais (ex: incluir ouro) ou desligar a regra: `CONFIG.armaduraIsolante`.
+- Criativo continua sem dano por regra do jogo, independentemente da armadura.

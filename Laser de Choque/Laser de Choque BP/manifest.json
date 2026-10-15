@@ -4,7 +4,7 @@
         "name": "Laser de Choque - Behavior",
         "description": "Dispositivo de chao que dispara uma ancora ate o teto e forma um feixe laser de choque eletrico",
         "uuid": "91b5d2e4-1fb1-49d7-b2f0-60e734e1b4ec",
-        "version": [1, 0, 0],
+        "version": [1, 2, 0],
         "min_engine_version": [1, 21, 0]
     },
     "modules": [
@@ -13,7 +13,7 @@
             "language": "javascript",
             "uuid": "08aa6828-bd73-4f4e-98eb-5ac7e057dc60",
             "entry": "scripts/main.js",
-            "version": [1, 0, 0]
+            "version": [1, 2, 0]
         }
     ],
     "dependencies": [
@@ -23,7 +23,7 @@
         },
         {
             "uuid": "d5c7f986-8089-49d5-a492-5a1a7892abad",
-            "version": [1, 0, 0]
+            "version": [1, 2, 0]
         }
     ]
 }

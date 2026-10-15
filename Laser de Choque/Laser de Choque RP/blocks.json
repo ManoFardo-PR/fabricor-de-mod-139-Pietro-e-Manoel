@@ -1,6 +1,9 @@
 {
     "format_version": "1.21.10",
-    "laser_choque:base_laser": {
+    "laser_choque:base_laser_vermelho": {
+        "sound": "metal"
+    },
+    "laser_choque:base_laser_relampago": {
         "sound": "metal"
     },
     "laser_choque:receptor_laser": {

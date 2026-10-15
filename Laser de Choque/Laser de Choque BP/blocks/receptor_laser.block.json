@@ -5,6 +5,9 @@
             "identifier": "laser_choque:receptor_laser",
             "menu_category": {
                 "category": "none"
+            },
+            "states": {
+                "laser_choque:tipo": ["vermelho", "relampago"]
             }
         },
         "components": {
@@ -23,7 +26,7 @@
                     "render_method": "alpha_test"
                 },
                 "lente": {
-                    "texture": "laser_choque_lente_ativa",
+                    "texture": "laser_choque_lente_vermelha",
                     "render_method": "alpha_test"
                 }
             },
@@ -36,6 +39,23 @@
             "minecraft:light_emission": 7,
             "minecraft:loot": "loot_tables/empty.json",
             "minecraft:map_color": "#2b2b2b"
-        }
+        },
+        "permutations": [
+            {
+                "condition": "q.block_state('laser_choque:tipo') == 'relampago'",
+                "components": {
+                    "minecraft:material_instances": {
+                        "*": {
+                            "texture": "laser_choque_receptor",
+                            "render_method": "alpha_test"
+                        },
+                        "lente": {
+                            "texture": "laser_choque_lente_amarela",
+                            "render_method": "alpha_test"
+                        }
+                    }
+                }
+            }
+        ]
     }
 }

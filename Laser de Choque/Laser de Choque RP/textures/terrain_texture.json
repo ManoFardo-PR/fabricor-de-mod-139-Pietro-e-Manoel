@@ -11,6 +11,12 @@
         "laser_choque_lente_ativa": {
             "textures": "textures/blocks/laser_choque_lente_ativa"
         },
+        "laser_choque_lente_vermelha": {
+            "textures": "textures/blocks/laser_choque_lente_vermelha"
+        },
+        "laser_choque_lente_amarela": {
+            "textures": "textures/blocks/laser_choque_lente_amarela"
+        },
         "laser_choque_receptor": {
             "textures": "textures/blocks/laser_choque_receptor"
         }

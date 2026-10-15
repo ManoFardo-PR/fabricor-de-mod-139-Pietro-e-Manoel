@@ -2,22 +2,22 @@
     "format_version": "1.12",
     "minecraft:recipe_shaped": {
         "description": {
-            "identifier": "laser_choque:base_laser_recipe"
+            "identifier": "laser_choque:base_laser_vermelho_recipe"
         },
         "tags": ["crafting_table"],
         "pattern": [
             " A ",
-            "RLR",
+            "RBR",
             "III"
         ],
         "key": {
             "A": { "item": "minecraft:amethyst_shard" },
             "R": { "item": "minecraft:redstone" },
-            "L": { "item": "minecraft:lightning_rod" },
+            "B": { "item": "minecraft:redstone_block" },
             "I": { "item": "minecraft:iron_ingot" }
         },
         "result": {
-            "item": "laser_choque:base_laser",
+            "item": "laser_choque:base_laser_vermelho",
             "count": 1
         }
     }

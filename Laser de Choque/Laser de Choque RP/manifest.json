@@ -4,20 +4,20 @@
         "name": "Laser de Choque - Resources",
         "description": "Modelos, texturas e traducoes do Laser de Choque",
         "uuid": "d5c7f986-8089-49d5-a492-5a1a7892abad",
-        "version": [1, 0, 0],
+        "version": [1, 2, 0],
         "min_engine_version": [1, 21, 0]
     },
     "modules": [
         {
             "type": "resources",
             "uuid": "3f7a01d2-9927-4b28-b114-214466a116f4",
-            "version": [1, 0, 0]
+            "version": [1, 2, 0]
         }
     ],
     "dependencies": [
         {
             "uuid": "91b5d2e4-1fb1-49d7-b2f0-60e734e1b4ec",
-            "version": [1, 0, 0]
+            "version": [1, 2, 0]
         }
     ]
 }

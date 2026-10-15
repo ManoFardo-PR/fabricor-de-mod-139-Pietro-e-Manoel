@@ -2,7 +2,7 @@
     "format_version": "1.21.10",
     "minecraft:block": {
         "description": {
-            "identifier": "laser_choque:base_laser",
+            "identifier": "laser_choque:base_laser_relampago",
             "menu_category": {
                 "category": "items",
                 "group": "itemGroup.name.redstoneContainers"
@@ -23,7 +23,7 @@
             },
             "minecraft:material_instances": {
                 "*": {
-                    "texture": "laser_choque_base",
+                    "texture": "laser_choque_receptor",
                     "render_method": "alpha_test"
                 },
                 "lente": {
@@ -51,14 +51,14 @@
             {
                 "condition": "q.block_state('laser_choque:ativo')",
                 "components": {
-                    "minecraft:light_emission": 10,
+                    "minecraft:light_emission": 12,
                     "minecraft:material_instances": {
                         "*": {
-                            "texture": "laser_choque_base",
+                            "texture": "laser_choque_receptor",
                             "render_method": "alpha_test"
                         },
                         "lente": {
-                            "texture": "laser_choque_lente_ativa",
+                            "texture": "laser_choque_lente_amarela",
                             "render_method": "alpha_test"
                         }
                     }

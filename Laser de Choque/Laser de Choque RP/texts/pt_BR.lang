@@ -1,3 +1,4 @@
-tile.laser_choque:base_laser.name=Base do Laser de Choque
+tile.laser_choque:base_laser_vermelho.name=Laser de Choque Vermelho
+tile.laser_choque:base_laser_relampago.name=Laser de Choque Relâmpago
 tile.laser_choque:receptor_laser.name=Receptor do Laser de Choque
 entity.laser_choque:ancora_voadora.name=Âncora do Laser de Choque
