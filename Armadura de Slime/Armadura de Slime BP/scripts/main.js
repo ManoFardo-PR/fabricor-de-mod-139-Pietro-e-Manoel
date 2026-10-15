@@ -185,6 +185,14 @@ system.runInterval(() => {
         const pieces = countSlimePieces(player);
 
         if (pieces === 0) {
+            // Limpar efeitos residuais dos estados ativos antes de descartar o estado
+            const antigo = playerState.get(player.id);
+            if (antigo) {
+                try {
+                    if (antigo.leavesStuck || antigo.stuckWithMobId) player.removeEffect("slowness");
+                    if (antigo.stuckOnCeiling) player.removeEffect("levitation");
+                } catch (e) { }
+            }
             playerState.delete(player.id);
             continue;
         }
@@ -192,6 +200,16 @@ system.runInterval(() => {
         const state = getOrCreateState(player);
         const loc = player.location;
         const dim = player.dimension;
+
+        // Menos de 4 pecas: liberar grude no teto e zerar memoria de queda
+        if (pieces < 4) {
+            if (state.stuckOnCeiling) {
+                state.stuckOnCeiling = false;
+                state.ceilingStuckTicks = 0;
+                try { player.removeEffect("levitation"); } catch (e) { }
+            }
+            state.superBounceFallDist = 0;
+        }
 
         // --- 1+ PECAS: Particulas verdes de slime ---
         try {
@@ -245,7 +263,8 @@ system.runInterval(() => {
                     state.leavesStuck = false;
                     state.leavesCooldown = CONFIG.leavesCooldown;
                     try {
-                        player.removeEffect("slowness");
+                        // So remove a lentidao se o grude com mob nao estiver ativo
+                        if (!state.stuckWithMobId) player.removeEffect("slowness");
                         player.sendMessage("\u00a7aAs folhas se soltaram!");
                     } catch (e) { }
                 }
@@ -353,7 +372,8 @@ system.runInterval(() => {
             if (state.stuckWithMobTicks <= 0) {
                 try {
                     player.sendMessage("\u00a7aVoce se desgrudou do mob!");
-                    player.removeEffect("slowness");
+                    // So remove a lentidao se as folhas nao estiverem grudadas
+                    if (!state.leavesStuck) player.removeEffect("slowness");
                 } catch (e) { }
                 state.stuckWithMobId = null;
                 state.stuckWithMobTicks = 0;
@@ -423,6 +443,9 @@ system.runInterval(() => {
         if (state.isFalling && player.isOnGround) {
             const fallDist = state.fallStartY - loc.y;
             state.isFalling = false;
+
+            // Pouso sem super quique: nao deixa memoria de queda para o grude no teto
+            state.superBounceFallDist = 0;
 
             // 4 PECAS: Quica de volta proporcional a queda
             if (pieces === 4 && fallDist > CONFIG.superBounceMinFall) {
@@ -500,6 +523,7 @@ system.runInterval(() => {
             const nearbyMobs = dim.getEntities({
                 location: loc,
                 maxDistance: 1.5,
+                families: ["mob"],
                 excludeTypes: ["minecraft:player", "minecraft:item"]
             });
 
@@ -550,7 +574,7 @@ system.runInterval(() => {
 //  ARREMESSO DO JOGADOR - 4 pecas, 10% chance
 // ============================================================
 world.afterEvents.entityHitEntity.subscribe((event) => {
-    const target = event.damagedEntity;
+    const target = event.hitEntity;
     const attacker = event.damagingEntity;
 
     if (!target || !attacker) return;

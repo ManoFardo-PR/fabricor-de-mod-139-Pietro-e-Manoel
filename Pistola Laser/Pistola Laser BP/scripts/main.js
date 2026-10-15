@@ -7,7 +7,6 @@ import { world, system, EquipmentSlot } from "@minecraft/server";
 
 // ==== CONFIGURACAO ====
 const CONFIG = {
-    intervaloHUD: 10,           // ticks entre atualizacoes do HUD (0.5s)
     intervaloLuneta: 4,         // ticks entre atualizacoes da mira da luneta
 
     // Pistola Laser
@@ -98,9 +97,15 @@ system.runInterval(() => {
                 if (!equipamento) continue;
 
                 const itemMao = equipamento.getEquipment(EquipmentSlot.Mainhand);
-                if (!itemMao) continue;
+                const tipoItem = itemMao ? itemMao.typeId : null;
 
-                const tipoItem = itemMao.typeId;
+                // Estado de mira preso (morte/teleporte com o botao pressionado): resetar
+                if (tipoItem !== CONFIG.identificadorSniper && jogadorMirando.get(jogador.id)) {
+                    jogadorMirando.set(jogador.id, false);
+                    desativarZoom(jogador);
+                }
+
+                if (!itemMao) continue;
 
                 // Se esta mirando com sniper, mostra HUD da luneta
                 if (tipoItem === CONFIG.identificadorSniper && jogadorMirando.get(jogador.id)) {
@@ -220,41 +225,52 @@ world.afterEvents.itemReleaseUse.subscribe((evento) => {
 });
 
 // ==== EVENTO: PROJETIL ACERTA ENTIDADE ====
-world.afterEvents.entityHitEntity.subscribe((evento) => {
+// projectileHitEntity e o evento correto para projeteis (entityHitEntity so cobre corpo a corpo)
+world.afterEvents.projectileHitEntity.subscribe((evento) => {
     try {
-        const projetil = evento.damagingEntity;
-        const alvo = evento.hitEntity;
-        if (!projetil) return;
+        let tipoProjetil = null;
+        try { tipoProjetil = evento.projectile ? evento.projectile.typeId : null; } catch (e) {}
+        if (!tipoProjetil) return;
 
-        const tipoProjetil = projetil.typeId;
+        const dim = evento.dimension;
+        const pos = evento.location;
 
         // Projetil da Pistola Laser
         if (tipoProjetil === CONFIG.identificadorProjetil) {
             try {
-                const posAlvo = alvo.location;
-                alvo.dimension.spawnParticle("minecraft:basic_flame_particle", {
-                    x: posAlvo.x, y: posAlvo.y + 1, z: posAlvo.z
+                dim.spawnParticle("minecraft:basic_flame_particle", {
+                    x: pos.x, y: pos.y + 0.5, z: pos.z
                 });
             } catch (e) {}
             try {
-                alvo.dimension.playSound("random.fizz", alvo.location, { volume: 0.8, pitch: 1.5 });
+                dim.playSound("random.fizz", pos, { volume: 0.8, pitch: 1.5 });
             } catch (e) {}
         }
 
         // Projetil do Sniper
         if (tipoProjetil === CONFIG.identificadorProjetilSniper) {
             try {
-                const posAlvo = alvo.location;
-                alvo.dimension.spawnParticle("minecraft:critical_hit_emitter", {
-                    x: posAlvo.x, y: posAlvo.y + 1, z: posAlvo.z
+                dim.spawnParticle("minecraft:critical_hit_emitter", {
+                    x: pos.x, y: pos.y + 0.5, z: pos.z
                 });
-                alvo.dimension.spawnParticle("minecraft:endrod", {
-                    x: posAlvo.x, y: posAlvo.y + 1.5, z: posAlvo.z
+                dim.spawnParticle("minecraft:endrod", {
+                    x: pos.x, y: pos.y + 1.0, z: pos.z
                 });
             } catch (e) {}
             try {
-                alvo.dimension.playSound("random.explode", alvo.location, { volume: 0.6, pitch: 1.2 });
+                dim.playSound("random.explode", pos, { volume: 0.6, pitch: 1.2 });
             } catch (e) {}
+        }
+    } catch (e) {}
+});
+
+// ==== EVENTO: RESPAWN - limpa estado de mira ====
+world.afterEvents.playerSpawn.subscribe((evento) => {
+    try {
+        const jogador = evento.player;
+        if (jogadorMirando.get(jogador.id)) {
+            jogadorMirando.set(jogador.id, false);
+            desativarZoom(jogador);
         }
     } catch (e) {}
 });

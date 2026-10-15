@@ -10,6 +10,9 @@
         },
         "components": {
             "minecraft:max_stack_size": 64,
+            "minecraft:projectile": {
+                "projectile_entity": "flechas_especiais:proj_paralisia"
+            },
             "minecraft:icon": {
                 "textures": {
                     "default": "flecha_paralisia"

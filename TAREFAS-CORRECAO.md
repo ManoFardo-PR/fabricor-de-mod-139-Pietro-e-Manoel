@@ -1,5 +1,23 @@
 # Tarefas de Correcao - Revisao de 2026-10-14
 
+## Status de execucao (2026-10-14)
+
+Todas as 22 tarefas foram executadas. Validacao final (T22): 7 scripts com sintaxe OK, todos os JSONs validos,
+`auditar_paridade.mjs` com 0 bloqueios, nenhum residuo de `damagedEntity` / `crit_emitter` / `red_flower`,
+e as 5 secoes do unificado identicas aos modulares (diff sem comentarios e prefixos vazio).
+
+Decisoes assumidas durante a execucao:
+- **T12**: o bloco Multiplicador passou a dropar a si mesmo ao ser quebrado (`minecraft:loot` removido; `loot_tables/empty.json` apagado nos 2 BPs).
+- **T15**: a Pistola Sinalizadora virou arma reutilizavel (stack 1, durabilidade 64, reparavel com redstone); o disparo e feito por script em `itemUse` com `owner` definido.
+- **T04**: adotada a solucao A (item novo `flechas_especiais:arco_especial` com `minecraft:shooter`; receita arco + 4 redstone + 1 diamante; textura gerada em `textures/items/arco_especial.png`). O script das flechas ficou so com os efeitos de impacto.
+- **T13**: os dois cactus zumbis usam `minecraft:behavior.delayed_attack` (necessario para `query.is_delayed_attacking`).
+- **T17/T18/T19**: o unificado passou a ser gerado a partir dos modulares (modulares = fonte da verdade). Cabecalho do `main.js` unificado atualizado para listar as 5 secoes.
+- O commit do `instalar.bat` (T20) **nao** foi feito: ha trabalho de outra sessao nao commitado em `Laser de Choque/`; commitar so os arquivos desta correcao e decisao do usuario.
+
+Pendente de teste in-game (nao verificavel por script): T03 (`beforeEvents.playerInteractWithBlock` em 1.12.0; ha fallback automatico para o afterEvent), T11 (posicao dos modelos 3D na mao), T13 (animacao de ataque), T15 (disparo da pistola).
+
+---
+
 Lista de tarefas autocontidas para resolver os defeitos encontrados na revisao completa do projeto.
 Cada tarefa traz: arquivos exatos, o que mudar e como verificar. Nenhuma depende de contexto fora deste arquivo.
 

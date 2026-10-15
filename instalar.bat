@@ -303,7 +303,7 @@ echo.
 echo OK! Todos os 8 packs estao instalados no disco.
 echo.
 echo IMPORTANTE: No Minecraft, ative APENAS UM grupo:
-echo   - OU os 5 packs modulares
+echo   - OU os 6 packs modulares
 echo   - OU o pack unificado "Mods Pietro e Manoel"
 echo NUNCA ative ambos - causa efeitos duplicados, light_blocks orfaos, etc.
 goto :pause_e_volta

@@ -228,7 +228,7 @@ world.afterEvents.entityHitEntity.subscribe((evento) => {
                 // Particula de espinho
                 const loc = atacante.location;
                 const dim = atacante.dimension;
-                dim.spawnParticle("minecraft:crit_emitter", loc);
+                dim.spawnParticle("minecraft:critical_hit_emitter", loc);
             } catch (e) {}
         }
     } catch (e) {}
@@ -273,7 +273,7 @@ world.afterEvents.entityDie.subscribe((evento) => {
         // Particulas de explosao
         for (let p = 0; p < 10; p++) {
             try {
-                dim.spawnParticle("minecraft:crit_emitter", {
+                dim.spawnParticle("minecraft:critical_hit_emitter", {
                     x: loc.x + (Math.random() - 0.5) * 3,
                     y: loc.y + Math.random() * 2,
                     z: loc.z + (Math.random() - 0.5) * 3,
@@ -288,9 +288,13 @@ world.afterEvents.entityDie.subscribe((evento) => {
     } catch (e) {}
 });
 
+// Ultima posicao (em blocos) de cada cactus zumbi: mob.id -> {x, y, z}
+const ultimaPosMob = new Map();
+
 // ==== LOOP AMBIENTAL: REGENERACAO, DANO AGUA, PLANTAR CACTUS ====
 system.runInterval(() => {
     const nomeDimensoes = ["overworld", "nether", "the_end"];
+    const idsMobsVivos = new Set();
 
     for (const nomeDim of nomeDimensoes) {
         try {
@@ -302,10 +306,15 @@ system.runInterval(() => {
             for (const mob of todosMobs) {
                 try {
                     if (!mob.isValid()) continue;
+                    idsMobsVivos.add(mob.id);
                     const loc = mob.location;
                     const bx = Math.floor(loc.x);
                     const by = Math.floor(loc.y);
                     const bz = Math.floor(loc.z);
+
+                    // Posicao anterior (onde o mob estava no ultimo ciclo)
+                    const posAnterior = ultimaPosMob.get(mob.id);
+                    ultimaPosMob.set(mob.id, { x: bx, y: by, z: bz });
 
                     // Bloco abaixo e bloco na posicao do mob
                     const blocoAbaixo = dim.getBlock({ x: bx, y: by - 1, z: bz });
@@ -341,20 +350,22 @@ system.runInterval(() => {
                         } catch (e) {}
                     }
 
-                    // Plantar cactus ao andar
-                    if (mob.isValid() && Math.random() < CONFIG.chancePlantarCactus) {
+                    // Plantar cactus no rastro: so na posicao ANTERIOR, e so se o mob saiu dela
+                    const saiuDoBloco = posAnterior &&
+                        (posAnterior.x !== bx || posAnterior.y !== by || posAnterior.z !== bz);
+                    if (saiuDoBloco && mob.isValid() && Math.random() < CONFIG.chancePlantarCactus) {
                         try {
-                            // Verificar se bloco anterior era areia e posicao atual e ar
-                            const blocoAtras = dim.getBlock({ x: bx, y: by, z: bz });
-                            const blocoBase = dim.getBlock({ x: bx, y: by - 1, z: bz });
+                            const ax = posAnterior.x, ay = posAnterior.y, az = posAnterior.z;
+                            const blocoAtras = dim.getBlock({ x: ax, y: ay, z: az });
+                            const blocoBase = dim.getBlock({ x: ax, y: ay - 1, z: az });
 
                             if (blocoAtras && blocoAtras.typeId === "minecraft:air" &&
                                 blocoBase && blocoBase.typeId === "minecraft:sand") {
                                 // Verificar se nao ha blocos adjacentes (cactus precisa espaco)
-                                const adj1 = dim.getBlock({ x: bx + 1, y: by, z: bz });
-                                const adj2 = dim.getBlock({ x: bx - 1, y: by, z: bz });
-                                const adj3 = dim.getBlock({ x: bx, y: by, z: bz + 1 });
-                                const adj4 = dim.getBlock({ x: bx, y: by, z: bz - 1 });
+                                const adj1 = dim.getBlock({ x: ax + 1, y: ay, z: az });
+                                const adj2 = dim.getBlock({ x: ax - 1, y: ay, z: az });
+                                const adj3 = dim.getBlock({ x: ax, y: ay, z: az + 1 });
+                                const adj4 = dim.getBlock({ x: ax, y: ay, z: az - 1 });
 
                                 const temBlocoAdjacente =
                                     (adj1 && adj1.typeId !== "minecraft:air") ||
@@ -371,5 +382,10 @@ system.runInterval(() => {
                 } catch (e) {}
             }
         } catch (e) {}
+    }
+
+    // Limpar posicoes de mobs que nao existem mais
+    for (const [id] of ultimaPosMob) {
+        if (!idsMobsVivos.has(id)) ultimaPosMob.delete(id);
     }
 }, CONFIG.intervaloAmbiental);

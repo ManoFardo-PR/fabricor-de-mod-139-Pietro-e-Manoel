@@ -60,13 +60,23 @@ Execute o arquivo `instalar.bat` na raiz do projeto. Ele copia automaticamente o
 
 ### Obtendo os itens no jogo
 
-Os itens nao possuem receitas de crafting. Para obte-los, use comandos:
+Todos os itens tem receita na mesa de trabalho (`Super Picareta BP/recipes/*.recipe.json`):
+
+| Item | Receita (3x3) | Rende |
+|------|---------------|-------|
+| Super Picareta | diamante em cima e embaixo, redstone nos lados, picareta de netherite no centro | 1 |
+| TNT Arremessavel | TNT + redstone lado a lado | 4 |
+| Bomba Submarina | kelp em cima e embaixo, lapis-lazuli nos lados, TNT Arremessavel no centro | 2 |
+| Pistola Sinalizadora | redstone em cima; pao, tabuas de carvalho e balde de lava na linha do meio | 1 |
+| Espada de Fogo | 2 blocos de magma em coluna sobre 1 graveto | 1 |
+
+Alternativa por comando:
 
 ```
 /give @s escavadora:super_picareta
 /give @s escavadora:tnt_arremessavel 16
 /give @s escavadora:bomba_submarina 16
-/give @s escavadora:pistola_sinalizadora 16
+/give @s escavadora:pistola_sinalizadora
 /give @s escavadora:espada_de_fogo
 ```
 

@@ -74,7 +74,7 @@ echo.
 echo Agora no Minecraft:
 echo   1. Crie um mundo novo (ou edite um existente)
 echo   2. Ative os packs "Multiplicador" no mundo
-echo   3. Ative "Beta APIs" nas opcoes experimentais
+echo   3. (Opcional) "Beta APIs" NAO e necessario para o Multiplicador
 echo   4. Crafting: 4 diamantes + 4 obsidiana + 1 bau
 echo   5. Ou use: /give @s multiplicador:multiplicador_x10
 echo.

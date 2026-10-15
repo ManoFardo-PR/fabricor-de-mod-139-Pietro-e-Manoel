@@ -1,15 +1,24 @@
 // ================================================================
 //  MODS PIETRO E MANOEL - Script Unificado
-//  1. Super Picareta (escavação, TNT, Bomba, Pistola, Espada)
-//  2. Multiplicador x10 (duplicação de itens)
-//  3. Armadura de Slime (repulsão, saltos, quique)
+//  1. Super Picareta (escavacao, TNT, Bomba, Pistola Sinalizadora, Espada de Fogo)
+//  2. Multiplicador x10 (duplicacao de itens)
+//  3. Armadura de Slime v2 (repulsao, saltos, quique, folhas, teto, arremesso)
+//  4. Pistola Laser e Rifle Sniper (HUD de municao, luneta)
+//  5. Cactus Zumbi (pocao, mobs, espinhos)
 // ================================================================
 
 import { world, system, EquipmentSlot, BlockPermutation } from "@minecraft/server";
 
 // ████████████████████████████████████████████████████████████████
-// ██  1. SUPER PICARETA                                        ██
+// ██  1. SUPER PICARETA, TNT, BOMBA, SINALIZADORA, ESPADA        ██
 // ████████████████████████████████████████████████████████████████
+
+// Blocos que o tunel nunca apaga (alem de minerios e bedrock)
+const BLOCOS_PRESERVADOS_PICARETA = new Set([
+    "minecraft:chest", "minecraft:trapped_chest", "minecraft:barrel",
+    "minecraft:mob_spawner", "minecraft:ender_chest", "minecraft:shulker_box",
+    "minecraft:undyed_shulker_box", "minecraft:end_portal_frame", "minecraft:spore_blossom"
+]);
 
 world.afterEvents.playerBreakBlock.subscribe((event) => {
     const player = event.player;
@@ -77,8 +86,9 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
 
                         const id = block.typeId;
 
-                        // Preserva minerios, ancient debris e bedrock
-                        if (id.includes("ore") || id === "minecraft:ancient_debris" || id === "minecraft:bedrock") continue;
+                        // Preserva minerios, ancient debris, bedrock e blocos com conteudo
+                        if (id.endsWith("_ore") || id === "minecraft:ancient_debris" || id === "minecraft:bedrock") continue;
+                        if (BLOCOS_PRESERVADOS_PICARETA.has(id)) continue;
 
                         // Remove tudo que nao for minerio ou bedrock
                         block.setType("minecraft:air");
@@ -241,8 +251,11 @@ world.afterEvents.projectileHitEntity.subscribe((event) => {
     } catch (e) {}
 });
 
-// Fallback: detecta TNT presa
-const tntSpawnTick = new Map();
+// Fallback: detecta TNT presa (parada ha mais de 2s) ou perdida (viva ha mais de 10s)
+const TNT_FALLBACK_IDADE_MIN = 40;     // ticks antes de considerar "presa"
+const TNT_FALLBACK_IDADE_MAX = 200;    // teto absoluto: explode mesmo em movimento
+const TNT_FALLBACK_VEL_PARADA = 0.05;  // deslocamento (blocos / 2 ticks) abaixo do qual esta parada
+const tntTrack = new Map(); // id -> { spawnTick, lastX, lastY, lastZ }
 system.runInterval(() => {
     const aliveTntIds = new Set();
     const tntDimNames = ["overworld", "nether", "the_end"];
@@ -253,20 +266,27 @@ system.runInterval(() => {
             for (const tnt of tnts) {
                 aliveTntIds.add(tnt.id);
                 if (explodedTNTs.has(tnt.id)) continue;
-                if (!tntSpawnTick.has(tnt.id)) {
-                    tntSpawnTick.set(tnt.id, system.currentTick);
+                const loc = tnt.location;
+                if (!tntTrack.has(tnt.id)) {
+                    tntTrack.set(tnt.id, { spawnTick: system.currentTick, lastX: loc.x, lastY: loc.y, lastZ: loc.z });
                     continue;
                 }
-                const age = system.currentTick - tntSpawnTick.get(tnt.id);
-                if (age > 40) {
-                    explodeTNT(tnt, tnt.location, dim, false, null);
-                    tntSpawnTick.delete(tnt.id);
+                const t = tntTrack.get(tnt.id);
+                const age = system.currentTick - t.spawnTick;
+                const tdx = loc.x - t.lastX, tdy = loc.y - t.lastY, tdz = loc.z - t.lastZ;
+                const vel = Math.sqrt(tdx * tdx + tdy * tdy + tdz * tdz);
+                t.lastX = loc.x; t.lastY = loc.y; t.lastZ = loc.z;
+
+                const presa = age > TNT_FALLBACK_IDADE_MIN && vel < TNT_FALLBACK_VEL_PARADA;
+                if (presa || age > TNT_FALLBACK_IDADE_MAX) {
+                    explodeTNT(tnt, loc, dim, false, null);
+                    tntTrack.delete(tnt.id);
                 }
             }
         } catch (e) {}
     }
-    for (const [tid] of tntSpawnTick) {
-        if (!aliveTntIds.has(tid)) tntSpawnTick.delete(tid);
+    for (const [tid] of tntTrack) {
+        if (!aliveTntIds.has(tid)) tntTrack.delete(tid);
     }
 }, 2);
 
@@ -448,7 +468,12 @@ const FLARE_CONFIG = {
         impact: { particle: "minecraft:basic_flame_particle", count: 5 }
     },
     maxLanded: 5,
-    flightTimeout: 200
+    flightTimeout: 200,
+    gun: {
+        itemId: "escavadora:pistola_sinalizadora",
+        power: 1.2,           // velocidade inicial do sinalizador (blocos/tick)
+        spawnDistance: 0.8    // distancia a frente da cabeca onde o projetil nasce
+    }
 };
 
 const flightFlares = new Map();
@@ -460,9 +485,24 @@ const MAX_LIGHT_REMOVAL_RETRIES = 600;
 const FLARE_PROP_KEY = "escavadora:landed_flares";
 let landedFlaresLoaded = false;
 
+// Duracao total de um flare pousado (ticks), conforme agua/terra e meia-duracao
+function flareDuracaoMaxima(data) {
+    let maxDuration = data.inWater ? FLARE_CONFIG.duration.water : FLARE_CONFIG.duration.land;
+    if (data.halfDuration) maxDuration = Math.floor(maxDuration / 2);
+    return maxDuration;
+}
+
+// Salva o tempo RESTANTE (nao o tick absoluto): system.currentTick reinicia ao reabrir o mundo
 function salvarLandedFlares() {
     try {
-        const arr = Array.from(landedFlares.entries());
+        const now = system.currentTick;
+        const arr = [];
+        for (const [k, d] of landedFlares) {
+            const copia = Object.assign({}, d);
+            copia.restante = flareDuracaoMaxima(d) - (now - d.landTick);
+            delete copia.landTick;
+            arr.push([k, copia]);
+        }
         world.setDynamicProperty(FLARE_PROP_KEY, JSON.stringify(arr));
     } catch (e) {}
 }
@@ -473,9 +513,29 @@ function carregarLandedFlares() {
         if (typeof raw !== "string" || !raw) return;
         const arr = JSON.parse(raw);
         if (!Array.isArray(arr)) return;
+        const now = system.currentTick;
         for (const [k, v] of arr) {
-            if (!landedFlares.has(k)) landedFlares.set(k, v);
+            if (!v || landedFlares.has(k)) continue;
+            const max = flareDuracaoMaxima(v);
+            let restante;
+            if (typeof v.restante === "number") {
+                restante = v.restante;
+            } else if (typeof v.landTick === "number") {
+                // Formato antigo (tick absoluto): so e confiavel na mesma sessao
+                restante = max - (now - v.landTick);
+            } else {
+                restante = 0;
+            }
+            if (restante <= 0) {
+                // Ja expirou: so garantir que a luz seja removida
+                queueLightRemoval(v.dimId || "overworld", v.lightPos);
+                continue;
+            }
+            v.landTick = now - (max - restante);
+            delete v.restante;
+            landedFlares.set(k, v);
         }
+        salvarLandedFlares();
     } catch (e) {}
 }
 
@@ -548,7 +608,9 @@ function isFlammable(blockTypeId) {
         blockTypeId.includes("leaves") || blockTypeId.includes("wood") ||
         blockTypeId.includes("wool") || blockTypeId.includes("fence") ||
         blockTypeId.includes("carpet") || blockTypeId.includes("bamboo") ||
-        blockTypeId.includes("vine") || blockTypeId.includes("grass") ||
+        blockTypeId.includes("vine") ||
+        blockTypeId === "minecraft:short_grass" || blockTypeId === "minecraft:tall_grass" ||
+        blockTypeId === "minecraft:grass" ||
         blockTypeId.includes("fern") || blockTypeId.includes("wheat") ||
         blockTypeId.includes("flower") || blockTypeId.includes("azalea") ||
         blockTypeId.includes("moss") || blockTypeId.includes("hanging_roots") ||
@@ -726,6 +788,63 @@ function flareLand(dimension, loc, halfDuration) {
     salvarLandedFlares();
 }
 
+// Flare: disparo pela Pistola Sinalizadora (arma reutilizavel com durabilidade)
+world.afterEvents.itemUse.subscribe((event) => {
+    try {
+        const jogador = event.source;
+        const item = event.itemStack;
+        if (!item || item.typeId !== FLARE_CONFIG.gun.itemId) return;
+        if (!jogador || jogador.typeId !== "minecraft:player") return;
+
+        const dir = jogador.getViewDirection();
+        const head = jogador.getHeadLocation();
+        const dist = FLARE_CONFIG.gun.spawnDistance;
+        const pos = { x: head.x + dir.x * dist, y: head.y + dir.y * dist - 0.1, z: head.z + dir.z * dist };
+        const dim = jogador.dimension;
+        const dimName = dim.id.replace("minecraft:", "");
+        const power = FLARE_CONFIG.gun.power;
+
+        system.run(() => {
+            try {
+                const flare = dim.spawnEntity("escavadora:sinalizador_projetil", pos);
+                const proj = flare.getComponent("minecraft:projectile");
+                if (proj) {
+                    try { proj.owner = jogador; } catch (e) {}
+                    proj.shoot({ x: dir.x * power, y: dir.y * power, z: dir.z * power }, { uncertainty: 0 });
+                }
+                flightFlares.set(flare.id, {
+                    lastPos: null,
+                    bounceCount: 0,
+                    spawnTick: system.currentTick,
+                    dimName: ["overworld", "nether", "the_end"].includes(dimName) ? dimName : "overworld",
+                    lightPos: null
+                });
+            } catch (e) {}
+        });
+
+        // Consumir durabilidade da pistola
+        try {
+            const inv = jogador.getComponent("minecraft:inventory").container;
+            const slot = jogador.selectedSlotIndex;
+            const naMao = inv.getItem(slot);
+            if (naMao && naMao.typeId === FLARE_CONFIG.gun.itemId) {
+                const dur = naMao.getComponent("minecraft:durability");
+                if (dur) {
+                    dur.damage = Math.min(dur.damage + 1, dur.maxDurability);
+                    if (dur.damage >= dur.maxDurability) {
+                        inv.setItem(slot, undefined);
+                        jogador.playSound("random.break");
+                    } else {
+                        inv.setItem(slot, naMao);
+                    }
+                }
+            }
+        } catch (e) {}
+
+        try { jogador.playSound("firework.blast", { volume: 0.8, pitch: 1.2 }); } catch (e) {}
+    } catch (e) {}
+});
+
 // Flare: projectileHitBlock (bounce + pouso)
 world.afterEvents.projectileHitBlock.subscribe((event) => {
     try {
@@ -874,8 +993,7 @@ function updateLandedFlares(now) {
         try {
             const dim = world.getDimension(data.dimId);
             const age = now - data.landTick;
-            let maxDuration = data.inWater ? FLARE_CONFIG.duration.water : FLARE_CONFIG.duration.land;
-            if (data.halfDuration) maxDuration = Math.floor(maxDuration / 2);
+            const maxDuration = flareDuracaoMaxima(data);
 
             spawnSmokeEffects(dim, data.loc);
 
@@ -1153,102 +1271,172 @@ world.afterEvents.entityHitBlock.subscribe((event) => {
 });
 
 // ████████████████████████████████████████████████████████████████
-// ██  2. MULTIPLICADOR x10                                     ██
+// ██  2. MULTIPLICADOR x10                                       ██
 // ████████████████████████████████████████████████████████████████
 
-world.afterEvents.playerInteractWithBlock.subscribe((event) => {
-    if (event.block.typeId !== "multiplicador:multiplicador_x10") return;
+// ================================================================
+// Multiplicador x10
+// 1 item na mao + 10 diamantes no inventario = 10 copias do item
+// ================================================================
 
-    const player = event.player;
-    const inventory = player.getComponent("minecraft:inventory");
-    if (!inventory) return;
-    const container = inventory.container;
-    if (!container) return;
+const MULTI_CONFIG = {
+    blocoId: "multiplicador:multiplicador_x10",
+    custoDiamantes: 10,
+    copias: 10
+};
 
-    const slot = player.selectedSlotIndex;
-    const held = container.getItem(slot);
+// Debounce: player.id -> tick do ultimo uso (o clique pode disparar 2x no mesmo tick)
+const multiUltimoUso = new Map();
 
-    if (!held) {
-        player.sendMessage("§e[Multiplicador x10] §cSegure um item na mao para multiplicar!");
-        return;
-    }
+function multiProcessar(player, block) {
+    try {
+        const inventory = player.getComponent("minecraft:inventory");
+        if (!inventory) return;
+        const container = inventory.container;
+        if (!container) return;
 
-    if (held.typeId === "minecraft:diamond") {
-        player.sendMessage("§e[Multiplicador x10] §cNao e possivel multiplicar diamantes!");
-        return;
-    }
+        const slot = player.selectedSlotIndex;
+        const held = container.getItem(slot);
 
-    let diamondCount = 0;
-    const diamondSlots = [];
-    for (let i = 0; i < container.size; i++) {
-        const item = container.getItem(i);
-        if (item && item.typeId === "minecraft:diamond") {
-            diamondCount += item.amount;
-            diamondSlots.push(i);
+        // Precisa segurar um item
+        if (!held) {
+            player.sendMessage("§e[Multiplicador x10] §cSegure um item na mao para multiplicar!");
+            return;
         }
-    }
 
-    if (diamondCount < 10) {
-        player.sendMessage(`§e[Multiplicador x10] §cPrecisa de 10 diamantes! (voce tem ${diamondCount})`);
-        return;
-    }
+        // Nao multiplicar diamantes (evita loop infinito)
+        if (held.typeId === "minecraft:diamond") {
+            player.sendMessage("§e[Multiplicador x10] §cNao e possivel multiplicar diamantes!");
+            return;
+        }
 
-    const itemClone = held.clone();
-    itemClone.amount = 1;
+        // Contar diamantes no inventario
+        let diamondCount = 0;
+        const diamondSlots = [];
+        for (let i = 0; i < container.size; i++) {
+            const item = container.getItem(i);
+            if (item && item.typeId === "minecraft:diamond") {
+                diamondCount += item.amount;
+                diamondSlots.push(i);
+            }
+        }
 
-    if (held.amount > 1) {
-        held.amount -= 1;
-        container.setItem(slot, held);
-    } else {
-        container.setItem(slot, undefined);
-    }
+        if (diamondCount < MULTI_CONFIG.custoDiamantes) {
+            player.sendMessage(`§e[Multiplicador x10] §cPrecisa de ${MULTI_CONFIG.custoDiamantes} diamantes! (voce tem ${diamondCount})`);
+            return;
+        }
 
-    let toConsume = 10;
-    for (const i of diamondSlots) {
-        if (toConsume <= 0) break;
-        const item = container.getItem(i);
-        if (!item) continue;
-        if (item.amount <= toConsume) {
-            toConsume -= item.amount;
-            container.setItem(i, undefined);
+        // --- Tudo OK, processar multiplicacao ---
+
+        // Guardar clone do item (1 unidade)
+        const itemClone = held.clone();
+        itemClone.amount = 1;
+
+        // Consumir 1 item da mao
+        if (held.amount > 1) {
+            held.amount -= 1;
+            container.setItem(slot, held);
         } else {
-            item.amount -= toConsume;
-            container.setItem(i, item);
-            toConsume = 0;
+            container.setItem(slot, undefined);
         }
-    }
 
-    const output = itemClone.clone();
-    output.amount = 10;
-    try {
-        container.addItem(output);
-    } catch (e) {
+        // Consumir os diamantes
+        let toConsume = MULTI_CONFIG.custoDiamantes;
+        for (const i of diamondSlots) {
+            if (toConsume <= 0) break;
+            const item = container.getItem(i);
+            if (!item) continue;
+            if (item.amount <= toConsume) {
+                toConsume -= item.amount;
+                container.setItem(i, undefined);
+            } else {
+                item.amount -= toConsume;
+                container.setItem(i, item);
+                toConsume = 0;
+            }
+        }
+
+        // Dar as copias em lotes do tamanho maximo do stack do item.
+        // addItem NAO lanca erro quando nao cabe: devolve o que sobrou.
+        const porStack = Math.max(1, Math.min(MULTI_CONFIG.copias, itemClone.maxAmount));
+        let restantes = MULTI_CONFIG.copias;
+        while (restantes > 0) {
+            const lote = itemClone.clone();
+            lote.amount = Math.min(porStack, restantes);
+            restantes -= lote.amount;
+            let sobra;
+            try { sobra = container.addItem(lote); } catch (e) { sobra = lote; }
+            if (sobra) {
+                // Inventario cheio: spawna no chao
+                try { player.dimension.spawnItem(sobra, player.location); } catch (e2) {}
+            }
+        }
+
+        // Efeitos visuais + sonoros
+        const loc = block.location;
         try {
-            player.dimension.spawnItem(output, player.location);
-        } catch (e2) {}
-    }
-
-    const loc = event.block.location;
-    try {
-        player.dimension.playSound("random.levelup", {
-            x: loc.x + 0.5, y: loc.y + 0.5, z: loc.z + 0.5
-        });
-        for (let i = 0; i < 10; i++) {
-            player.dimension.spawnParticle("minecraft:villager_happy", {
-                x: loc.x + 0.5 + (Math.random() - 0.5) * 0.8,
-                y: loc.y + 1.0 + Math.random() * 0.5,
-                z: loc.z + 0.5 + (Math.random() - 0.5) * 0.8
+            player.dimension.playSound("random.levelup", {
+                x: loc.x + 0.5, y: loc.y + 0.5, z: loc.z + 0.5
             });
-        }
-    } catch (e) {}
+            for (let i = 0; i < 10; i++) {
+                player.dimension.spawnParticle("minecraft:villager_happy", {
+                    x: loc.x + 0.5 + (Math.random() - 0.5) * 0.8,
+                    y: loc.y + 1.0 + Math.random() * 0.5,
+                    z: loc.z + 0.5 + (Math.random() - 0.5) * 0.8
+                });
+            }
+        } catch (e) {}
 
-    player.sendMessage(`§e[Multiplicador x10] §a${itemClone.typeId.replace("minecraft:", "")} multiplicado x10!`);
+        player.sendMessage(`§e[Multiplicador x10] §a${itemClone.typeId.replace("minecraft:", "")} multiplicado x${MULTI_CONFIG.copias}!`);
+    } catch (e) {}
+}
+
+// Retorna true se este clique deve ser processado (evita disparo duplo no mesmo tick)
+function multiRegistrarClique(player) {
+    const agora = system.currentTick;
+    if (multiUltimoUso.get(player.id) === agora) return false;
+    multiUltimoUso.set(player.id, agora);
+    return true;
+}
+
+// Preferir o beforeEvent: cancela a interacao vanilla (ex.: colocar o bloco segurado).
+// Se a API nao existir nesta versao, cai no afterEvent (sem cancelamento).
+let multiUsouBeforeEvent = false;
+try {
+    if (world.beforeEvents && world.beforeEvents.playerInteractWithBlock) {
+        world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
+            try {
+                if (event.block.typeId !== MULTI_CONFIG.blocoId) return;
+                event.cancel = true;
+                const player = event.player;
+                const block = event.block;
+                if (!multiRegistrarClique(player)) return;
+                system.run(() => multiProcessar(player, block));
+            } catch (e) {}
+        });
+        multiUsouBeforeEvent = true;
+    }
+} catch (e) {}
+
+if (!multiUsouBeforeEvent) {
+    world.afterEvents.playerInteractWithBlock.subscribe((event) => {
+        try {
+            if (event.block.typeId !== MULTI_CONFIG.blocoId) return;
+            if (!multiRegistrarClique(event.player)) return;
+            multiProcessar(event.player, event.block);
+        } catch (e) {}
+    });
+}
+
+world.afterEvents.playerLeave.subscribe((event) => {
+    multiUltimoUso.delete(event.playerId);
 });
 
 // ████████████████████████████████████████████████████████████████
-// ██  3. ARMADURA DE SLIME                                     ██
+// ██  3. ARMADURA DE SLIME v2                                    ██
 // ████████████████████████████████████████████████████████████████
 
+// === IDS DAS PECAS ===
 const SLIME_IDS = {
     head:  "slime_armor:capacete_slime",
     chest: "slime_armor:peitoral_slime",
@@ -1256,24 +1444,59 @@ const SLIME_IDS = {
     feet:  "slime_armor:botas_slime"
 };
 
+// === CONFIGURACAO ===
 const SLIME_CONFIG = {
+    // Repulsao de ataque (3+ pecas)
     repulsionForce: 3.5,
     repulsionUpward: 0.8,
-    slownessDuration: 60,
+    slownessDuration: 60,       // 3 segundos
     slownessAmplifier: 1,
+
+    // Saltos progressivos (4 pecas, set completo)
     bounceInitial: 0.6,
     bounceIncrement: 0.04,
     bounceMax: 2.5,
-    bounceStartDelay: 20,
+    bounceStartDelay: 20,       // ticks antes de comecar a crescer
     bounceForwardPush: 0.3,
-    superBounceMinFall: 3,
+
+    // Super quique ao cair (4 pecas)
+    superBounceMinFall: 3,      // blocos minimos de queda
     superBounceMultiplier: 0.35,
     superBounceMax: 2.5,
-    fallResistanceAmplifier: 4,
-    fallVelocityThreshold: -0.5
+
+    // Imunidade a queda (2+ pecas)
+    fallResistanceAmplifier: 4, // nivel 5 = imunidade total
+    fallVelocityThreshold: -0.5,
+
+    // === NOVAS FEATURES v2 ===
+
+    // Agachar para reduzir quique (4 pecas)
+    sneakBounceMultiplier: 0.15,
+    sneakSuperBounceMultiplier: 0.2,
+
+    // Grudar no teto (4 pecas)
+    ceilingStuckDuration: 60,       // 3 segundos grudado no teto
+    ceilingMinFallDist: 5,          // queda minima para ativar grude
+
+    // Folhas grudadas (2+ pecas)
+    leavesStickChance: 0.30,        // 30% de chance
+    leavesStuckDuration: 600,       // 30 segundos (em ticks)
+    leavesSlownessAmplifier: 0,     // lentidao leve
+    leavesCooldown: 200,            // cooldown entre ativacoes (10s)
+
+    // Arremesso ao atacar (4 pecas)
+    flingChance: 0.10,              // 10% de chance
+    flingForce: 2.5,
+    flingUpward: 0.5,
+    flingDetectTicks: 40,           // 2 segundos para detectar colisao
+    stuckTogetherDuration: 100,     // 5 segundos grudados
+    stuckSlownessAmplifier: 3
 };
 
+// === ESTADO POR JOGADOR ===
 const slimePlayerState = new Map();
+
+// === FUNCOES AUXILIARES ===
 
 function countSlimePieces(player) {
     try {
@@ -1294,22 +1517,104 @@ function getOrCreateSlimeState(player) {
     let state = slimePlayerState.get(player.id);
     if (!state) {
         state = {
+            // Existentes
             bounceHeight: SLIME_CONFIG.bounceInitial,
             ticksSprinting: 0,
             isFalling: false,
-            fallStartY: player.location.y
+            fallStartY: player.location.y,
+
+            // Grudar no teto
+            stuckOnCeiling: false,
+            ceilingStuckTicks: 0,
+            lastVelY: 0,
+            superBounceFallDist: 0,
+
+            // Folhas grudadas
+            leavesStuck: false,
+            leavesStuckTicks: 0,
+            leavesCooldown: 0,
+
+            // Arremesso ao atacar
+            isFlungBack: false,
+            flungBackTicks: 0,
+
+            // Grudado com mob
+            stuckWithMobId: null,
+            stuckWithMobTicks: 0
         };
         slimePlayerState.set(player.id, state);
     }
     return state;
 }
 
-// Slime: Loop principal (a cada 4 ticks)
+// Verifica se um bloco e do tipo folha
+function slimeIsLeafBlock(block) {
+    if (!block) return false;
+    const id = block.typeId;
+    return id.includes("leaves");
+}
+
+// Verifica se ha bloco solido acima da cabeca do jogador
+function slimeHasCeilingAbove(player) {
+    try {
+        const loc = player.location;
+        const block = player.dimension.getBlock({
+            x: Math.floor(loc.x),
+            y: Math.floor(loc.y + 2),
+            z: Math.floor(loc.z)
+        });
+        return block && !block.isAir && !block.isLiquid;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Verifica se o jogador esta tocando folhas (blocos ao redor)
+function slimeIsTouchingLeaves(player) {
+    try {
+        const loc = player.location;
+        const dim = player.dimension;
+        const offsets = [
+            { x: 0, y: 0, z: 0 },
+            { x: 0, y: 1, z: 0 },
+            { x: 1, y: 0, z: 0 },
+            { x: -1, y: 0, z: 0 },
+            { x: 0, y: 0, z: 1 },
+            { x: 0, y: 0, z: -1 },
+            { x: 1, y: 1, z: 0 },
+            { x: -1, y: 1, z: 0 },
+            { x: 0, y: 1, z: 1 },
+            { x: 0, y: 1, z: -1 }
+        ];
+        for (const off of offsets) {
+            const block = dim.getBlock({
+                x: Math.floor(loc.x + off.x * 0.4),
+                y: Math.floor(loc.y + off.y),
+                z: Math.floor(loc.z + off.z * 0.4)
+            });
+            if (slimeIsLeafBlock(block)) return true;
+        }
+    } catch (e) { }
+    return false;
+}
+
+// ============================================================
+//  LOOP PRINCIPAL - a cada 4 ticks
+//  Particulas, veneno, saltos progressivos, folhas grudadas
+// ============================================================
 system.runInterval(() => {
     for (const player of world.getAllPlayers()) {
         const pieces = countSlimePieces(player);
 
         if (pieces === 0) {
+            // Limpar efeitos residuais dos estados ativos antes de descartar o estado
+            const antigo = slimePlayerState.get(player.id);
+            if (antigo) {
+                try {
+                    if (antigo.leavesStuck || antigo.stuckWithMobId) player.removeEffect("slowness");
+                    if (antigo.stuckOnCeiling) player.removeEffect("levitation");
+                } catch (e) { }
+            }
             slimePlayerState.delete(player.id);
             continue;
         }
@@ -1318,7 +1623,17 @@ system.runInterval(() => {
         const loc = player.location;
         const dim = player.dimension;
 
-        // 1+ PEÇAS: Partículas verdes
+        // Menos de 4 pecas: liberar grude no teto e zerar memoria de queda
+        if (pieces < 4) {
+            if (state.stuckOnCeiling) {
+                state.stuckOnCeiling = false;
+                state.ceilingStuckTicks = 0;
+                try { player.removeEffect("levitation"); } catch (e) { }
+            }
+            state.superBounceFallDist = 0;
+        }
+
+        // --- 1+ PECAS: Particulas verdes de slime ---
         try {
             for (let i = 0; i < pieces; i++) {
                 dim.spawnParticle("minecraft:villager_happy", {
@@ -1327,20 +1642,87 @@ system.runInterval(() => {
                     z: loc.z + (Math.random() - 0.5) * 1.5
                 });
             }
-        } catch (e) {}
+        } catch (e) { }
 
-        // 2+ PEÇAS: Resistência a veneno
+        // --- 2+ PECAS: Resistencia a veneno ---
         if (pieces >= 2) {
             try {
                 const poison = player.getEffect("poison");
                 if (poison) player.removeEffect("poison");
-            } catch (e) {}
+            } catch (e) { }
         }
 
-        // 4 PEÇAS: Saltos progressivos ao correr
-        if (pieces === 4 && player.isSprinting) {
+        // --- 2+ PECAS: Folhas grudadas ---
+        if (pieces >= 2) {
+            // Decrementar cooldown
+            if (state.leavesCooldown > 0) {
+                state.leavesCooldown -= 4;
+            }
+
+            if (state.leavesStuck) {
+                // Particulas de folha enquanto grudado
+                state.leavesStuckTicks -= 4;
+                try {
+                    dim.spawnParticle("minecraft:crop_growth_emitter", {
+                        x: loc.x,
+                        y: loc.y + 1.0,
+                        z: loc.z
+                    });
+                } catch (e) { }
+
+                // Manter lentidao ativa
+                if (state.leavesStuckTicks % 40 < 4) {
+                    try {
+                        player.addEffect("slowness", 60, {
+                            amplifier: SLIME_CONFIG.leavesSlownessAmplifier,
+                            showParticles: false
+                        });
+                    } catch (e) { }
+                }
+
+                // Expirou
+                if (state.leavesStuckTicks <= 0) {
+                    state.leavesStuck = false;
+                    state.leavesCooldown = SLIME_CONFIG.leavesCooldown;
+                    try {
+                        // So remove a lentidao se o grude com mob nao estiver ativo
+                        if (!state.stuckWithMobId) player.removeEffect("slowness");
+                        player.sendMessage("\u00a7aAs folhas se soltaram!");
+                    } catch (e) { }
+                }
+            } else if (state.leavesCooldown <= 0 && slimeIsTouchingLeaves(player)) {
+                // Chance de folhas grudarem
+                if (Math.random() < SLIME_CONFIG.leavesStickChance) {
+                    state.leavesStuck = true;
+                    state.leavesStuckTicks = SLIME_CONFIG.leavesStuckDuration;
+                    try {
+                        player.addEffect("slowness", SLIME_CONFIG.leavesStuckDuration, {
+                            amplifier: SLIME_CONFIG.leavesSlownessAmplifier,
+                            showParticles: false
+                        });
+                        dim.playSound("mob.slime.small", loc);
+                        player.sendMessage("\u00a72Folhas grudaram em voce!");
+                    } catch (e) { }
+                }
+            }
+        }
+
+        // --- 4 PECAS (SET COMPLETO): Saltos progressivos ao correr ---
+        // FEATURE: Agachar reduz o bounceHeight gradualmente (freio)
+        if (pieces === 4 && player.isSneaking) {
+            // Agachando = freia o pulo rapidamente
+            state.bounceHeight = Math.max(
+                state.bounceHeight * 0.5,   // Reduz 50% a cada tick
+                0.0                          // Para completamente
+            );
+            if (state.bounceHeight < 0.1) {
+                state.bounceHeight = 0;
+                state.ticksSprinting = 0;
+            }
+        } else if (pieces === 4 && player.isSprinting) {
             state.ticksSprinting += 4;
 
+            // Aumenta gradualmente a altura do salto
             if (state.ticksSprinting > SLIME_CONFIG.bounceStartDelay) {
                 state.bounceHeight = Math.min(
                     state.bounceHeight + SLIME_CONFIG.bounceIncrement,
@@ -1348,30 +1730,84 @@ system.runInterval(() => {
                 );
             }
 
-            if (player.isOnGround) {
+            // Aplica o pulo quando toca o chao
+            if (player.isOnGround && !state.stuckOnCeiling) {
                 try {
                     const viewDir = player.getViewDirection();
+                    let finalBounce = state.bounceHeight;
+                    let finalPush = SLIME_CONFIG.bounceForwardPush;
+
                     player.applyKnockback(
                         viewDir.x, viewDir.z,
-                        SLIME_CONFIG.bounceForwardPush,
-                        state.bounceHeight
+                        finalPush,
+                        finalBounce
                     );
 
-                    if (state.bounceHeight > 1.0) {
+                    // Som de slime proporcional ao salto
+                    if (finalBounce > 1.0) {
                         dim.playSound("mob.slime.big", loc);
-                    } else {
+                    } else if (finalBounce > 0) {
                         dim.playSound("mob.slime.small", loc);
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
-        } else {
+        } else if (!state.stuckOnCeiling) {
+            // Reset quando para de correr
             state.bounceHeight = SLIME_CONFIG.bounceInitial;
             state.ticksSprinting = 0;
+        }
+
+        // --- 4 PECAS: Grudado com mob (manter mob perto) ---
+        if (state.stuckWithMobId && state.stuckWithMobTicks > 0) {
+            state.stuckWithMobTicks -= 4;
+            try {
+                const entities = dim.getEntities({
+                    location: loc,
+                    maxDistance: 20
+                });
+                const stuckMob = entities.find(e => e.id === state.stuckWithMobId);
+                if (stuckMob) {
+                    // Teleportar mob para ficar colado ao jogador
+                    const viewDir = player.getViewDirection();
+                    stuckMob.teleport({
+                        x: loc.x + viewDir.x * 0.8,
+                        y: loc.y,
+                        z: loc.z + viewDir.z * 0.8
+                    });
+                    // Particulas de slime entre ambos
+                    dim.spawnParticle("minecraft:villager_happy", {
+                        x: (loc.x + stuckMob.location.x) / 2,
+                        y: loc.y + 0.5,
+                        z: (loc.z + stuckMob.location.z) / 2
+                    });
+                } else {
+                    // Mob sumiu, liberar
+                    state.stuckWithMobId = null;
+                    state.stuckWithMobTicks = 0;
+                }
+            } catch (e) {
+                state.stuckWithMobId = null;
+                state.stuckWithMobTicks = 0;
+            }
+
+            // Expirou
+            if (state.stuckWithMobTicks <= 0) {
+                try {
+                    player.sendMessage("\u00a7aVoce se desgrudou do mob!");
+                    // So remove a lentidao se as folhas nao estiverem grudadas
+                    if (!state.leavesStuck) player.removeEffect("slowness");
+                } catch (e) { }
+                state.stuckWithMobId = null;
+                state.stuckWithMobTicks = 0;
+            }
         }
     }
 }, 4);
 
-// Slime: Proteção contra queda (a cada 2 ticks)
+// ============================================================
+//  PROTECAO CONTRA QUEDA + TETO - a cada 2 ticks
+//  Detecta queda, aplica resistencia, super quique e grude no teto
+// ============================================================
 system.runInterval(() => {
     for (const player of world.getAllPlayers()) {
         const pieces = countSlimePieces(player);
@@ -1382,7 +1818,42 @@ system.runInterval(() => {
 
         const vel = player.getVelocity();
         const loc = player.location;
+        const dim = player.dimension;
 
+        // === GRUDAR NO TETO (4 pecas) ===
+        if (pieces === 4 && state.stuckOnCeiling) {
+            state.ceilingStuckTicks -= 2;
+
+            // Manter jogador "grudado" aplicando levitacao leve
+            try {
+                player.addEffect("levitation", 4, {
+                    amplifier: 0,
+                    showParticles: false
+                });
+                // Particulas no teto
+                dim.spawnParticle("minecraft:villager_happy", {
+                    x: loc.x + (Math.random() - 0.5) * 0.5,
+                    y: loc.y + 2.0,
+                    z: loc.z + (Math.random() - 0.5) * 0.5
+                });
+            } catch (e) { }
+
+            // Soltar do teto: tempo expirou OU jogador agachou
+            if (state.ceilingStuckTicks <= 0 || player.isSneaking) {
+                state.stuckOnCeiling = false;
+                state.ceilingStuckTicks = 0;
+                try {
+                    player.removeEffect("levitation");
+                    dim.playSound("mob.slime.big", loc);
+                    player.sendMessage("\u00a7aVoce se soltou do teto!");
+                } catch (e) { }
+            }
+
+            state.lastVelY = vel.y;
+            continue; // Pular logica de queda enquanto grudado
+        }
+
+        // Rastrear inicio da queda
         if (vel.y < -0.3 && !player.isOnGround) {
             if (!state.isFalling) {
                 state.isFalling = true;
@@ -1390,90 +1861,233 @@ system.runInterval(() => {
             }
         }
 
+        // Detectar pouso - super quique com set completo
         if (state.isFalling && player.isOnGround) {
             const fallDist = state.fallStartY - loc.y;
             state.isFalling = false;
 
+            // Pouso sem super quique: nao deixa memoria de queda para o grude no teto
+            state.superBounceFallDist = 0;
+
+            // 4 PECAS: Quica de volta proporcional a queda
             if (pieces === 4 && fallDist > SLIME_CONFIG.superBounceMinFall) {
-                const bounceForce = Math.min(
+                let bounceForce = Math.min(
                     fallDist * SLIME_CONFIG.superBounceMultiplier,
                     SLIME_CONFIG.superBounceMax
                 );
+
+                // FEATURE 1: Agachar reduz o super quique
+                if (player.isSneaking) {
+                    bounceForce *= SLIME_CONFIG.sneakSuperBounceMultiplier;
+                }
+
+                // Guardar distancia de queda para deteccao de teto
+                state.superBounceFallDist = fallDist;
+
                 system.run(() => {
                     try {
                         player.applyKnockback(0, 0, 0, bounceForce);
-                        player.dimension.playSound("mob.slime.big", player.location);
-                    } catch (e) {}
+                        if (bounceForce > 1.0) {
+                            player.dimension.playSound("mob.slime.big", player.location);
+                        } else {
+                            player.dimension.playSound("mob.slime.small", player.location);
+                        }
+                    } catch (e) { }
                 });
             }
         }
 
+        // === FEATURE 2: Detectar colisao com teto ===
+        if (pieces === 4 && !state.stuckOnCeiling) {
+            // Estava subindo rapido e de repente parou/desceu = bateu no teto
+            if (state.lastVelY > 0.3 && vel.y <= 0.05 && !player.isOnGround) {
+                if (state.superBounceFallDist >= SLIME_CONFIG.ceilingMinFallDist && slimeHasCeilingAbove(player)) {
+                    state.stuckOnCeiling = true;
+                    state.ceilingStuckTicks = SLIME_CONFIG.ceilingStuckDuration;
+                    state.superBounceFallDist = 0;
+                    try {
+                        dim.playSound("mob.slime.squish", loc);
+                        player.sendMessage("\u00a72Voce grudou no teto! Agache para soltar.");
+                    } catch (e) { }
+                }
+            }
+        }
+
+        // Imunidade a dano de queda via efeito de resistencia
         if (vel.y < SLIME_CONFIG.fallVelocityThreshold) {
             try {
                 player.addEffect("resistance", 8, {
                     amplifier: SLIME_CONFIG.fallResistanceAmplifier,
                     showParticles: false
                 });
-            } catch (e) {}
+            } catch (e) { }
+        }
+
+        state.lastVelY = vel.y;
+    }
+}, 2);
+
+// ============================================================
+//  DETECCAO DE ARREMESSO - a cada 2 ticks
+//  Verifica se jogador arremessado colidiu com mob
+// ============================================================
+system.runInterval(() => {
+    for (const player of world.getAllPlayers()) {
+        const state = slimePlayerState.get(player.id);
+        if (!state || !state.isFlungBack) continue;
+
+        state.flungBackTicks -= 2;
+        const loc = player.location;
+        const dim = player.dimension;
+
+        // Procurar mobs proximos para grudar
+        try {
+            const nearbyMobs = dim.getEntities({
+                location: loc,
+                maxDistance: 1.5,
+                families: ["mob"],
+                excludeTypes: ["minecraft:player", "minecraft:item"]
+            });
+
+            if (nearbyMobs.length > 0) {
+                const mob = nearbyMobs[0];
+                state.isFlungBack = false;
+                state.flungBackTicks = 0;
+                state.stuckWithMobId = mob.id;
+                state.stuckWithMobTicks = SLIME_CONFIG.stuckTogetherDuration;
+
+                // Aplicar lentidao pesada em ambos
+                try {
+                    player.addEffect("slowness", SLIME_CONFIG.stuckTogetherDuration, {
+                        amplifier: SLIME_CONFIG.stuckSlownessAmplifier,
+                        showParticles: true
+                    });
+                    mob.addEffect("slowness", SLIME_CONFIG.stuckTogetherDuration, {
+                        amplifier: SLIME_CONFIG.stuckSlownessAmplifier,
+                        showParticles: true
+                    });
+                } catch (e) { }
+
+                dim.playSound("mob.slime.squish", loc);
+                player.sendMessage("\u00a74Voce grudou no mob!");
+
+                // Particulas de impacto
+                for (let i = 0; i < 8; i++) {
+                    dim.spawnParticle("minecraft:villager_happy", {
+                        x: loc.x + (Math.random() - 0.5),
+                        y: loc.y + Math.random() * 1.5,
+                        z: loc.z + (Math.random() - 0.5)
+                    });
+                }
+            }
+        } catch (e) { }
+
+        // Tempo de deteccao expirou
+        if (state.flungBackTicks <= 0) {
+            state.isFlungBack = false;
+            state.flungBackTicks = 0;
         }
     }
 }, 2);
 
-// Slime: Repulsão de ataques (3+ peças)
+// ============================================================
+//  REPULSAO DE ATAQUES - 3+ pecas
+//  Atacantes sao arremessados para tras e ficam lentos
+//  ARREMESSO DO JOGADOR - 4 pecas, 10% chance
+// ============================================================
 world.afterEvents.entityHitEntity.subscribe((event) => {
-    const target = event.damagedEntity;
+    const target = event.hitEntity;
     const attacker = event.damagingEntity;
 
     if (!target || !attacker) return;
-    if (target.typeId !== "minecraft:player") return;
 
-    const pieces = countSlimePieces(target);
-    if (pieces < 3) return;
+    // --- REPULSAO: jogador e o ALVO (3+ pecas) ---
+    if (target.typeId === "minecraft:player") {
+        const pieces = countSlimePieces(target);
+        if (pieces >= 3) {
+            const dx = attacker.location.x - target.location.x;
+            const dz = attacker.location.z - target.location.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
 
-    const dx = attacker.location.x - target.location.x;
-    const dz = attacker.location.z - target.location.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist > 0.01) {
+                const nx = dx / dist;
+                const nz = dz / dist;
 
-    if (dist < 0.01) return;
+                try {
+                    attacker.applyKnockback(
+                        nx, nz,
+                        SLIME_CONFIG.repulsionForce,
+                        SLIME_CONFIG.repulsionUpward
+                    );
+                } catch (e) { }
 
-    const nx = dx / dist;
-    const nz = dz / dist;
+                try {
+                    attacker.addEffect("slowness", SLIME_CONFIG.slownessDuration, {
+                        amplifier: SLIME_CONFIG.slownessAmplifier,
+                        showParticles: true
+                    });
+                } catch (e) { }
 
-    try {
-        attacker.applyKnockback(
-            nx, nz,
-            SLIME_CONFIG.repulsionForce,
-            SLIME_CONFIG.repulsionUpward
-        );
-    } catch (e) {}
+                try {
+                    target.dimension.playSound("mob.slime.big", target.location);
+                } catch (e) { }
+            }
+        }
+    }
 
-    try {
-        attacker.addEffect("slowness", SLIME_CONFIG.slownessDuration, {
-            amplifier: SLIME_CONFIG.slownessAmplifier,
-            showParticles: true
-        });
-    } catch (e) {}
+    // --- FEATURE 4: ARREMESSO ao atacar (jogador e o ATACANTE, 4 pecas) ---
+    if (attacker.typeId === "minecraft:player") {
+        const pieces = countSlimePieces(attacker);
+        if (pieces === 4) {
+            const state = getOrCreateSlimeState(attacker);
 
-    try {
-        target.dimension.playSound("mob.slime.big", target.location);
-    } catch (e) {}
+            // Nao ativar se ja esta grudado com mob ou sendo arremessado
+            if (state.isFlungBack || state.stuckWithMobId) return;
+
+            if (Math.random() < SLIME_CONFIG.flingChance) {
+                // Direcao oposta ao ataque (do mob para o jogador = para tras)
+                const dx = attacker.location.x - target.location.x;
+                const dz = attacker.location.z - target.location.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+
+                if (dist > 0.01) {
+                    const nx = dx / dist;
+                    const nz = dz / dist;
+
+                    try {
+                        attacker.applyKnockback(
+                            nx, nz,
+                            SLIME_CONFIG.flingForce,
+                            SLIME_CONFIG.flingUpward
+                        );
+                    } catch (e) { }
+
+                    state.isFlungBack = true;
+                    state.flungBackTicks = SLIME_CONFIG.flingDetectTicks;
+
+                    try {
+                        attacker.dimension.playSound("mob.slime.big", attacker.location);
+                        attacker.sendMessage("\u00a7cO slime te arremessou!");
+                    } catch (e) { }
+                }
+            }
+        }
+    }
 });
 
 // ============================================================
-// LIMPEZA GERAL - ao desconectar
+//  LIMPEZA - remove estado quando jogador desconecta
 // ============================================================
 world.afterEvents.playerLeave.subscribe((event) => {
     slimePlayerState.delete(event.playerId);
 });
 
 // ████████████████████████████████████████████████████████████████
-// ██  4. PISTOLA LASER & RIFLE SNIPER                          ██
-// ██  HUD de municao + luneta com zoom via Camera API          ██
+// ██  4. PISTOLA LASER & RIFLE SNIPER                            ██
 // ████████████████████████████████████████████████████████████████
 
 // ==== CONFIGURACAO ====
 const LASER_CONFIG = {
-    intervaloHUD: 10,           // ticks entre atualizacoes do HUD (0.5s)
     intervaloLuneta: 4,         // ticks entre atualizacoes da mira da luneta
 
     // Pistola Laser
@@ -1497,12 +2111,15 @@ const laserJogadorMirando = new Map();       // player.id -> boolean
 const laserJogadorInicioMira = new Map();    // player.id -> tick de inicio
 const laserJogadorAvisadoZoom = new Set();   // player.id - ja recebeu aviso de Beta APIs
 
+// ==== FUNCAO: CONTAR MUNICAO ====
 function laserContarMunicao(jogador, tipoMunicao) {
     try {
         const inventario = jogador.getComponent("minecraft:inventory");
         if (!inventario) return 0;
+
         const container = inventario.container;
         let total = 0;
+
         for (let i = 0; i < container.size; i++) {
             try {
                 const slot = container.getItem(i);
@@ -1517,6 +2134,7 @@ function laserContarMunicao(jogador, tipoMunicao) {
     }
 }
 
+// ==== FUNCAO: ATIVAR ZOOM (Camera API - nao interfere com shooter) ====
 function laserAtivarZoom(jogador) {
     try {
         jogador.camera.setFov({
@@ -1536,6 +2154,7 @@ function laserAtivarZoom(jogador) {
     }
 }
 
+// ==== FUNCAO: DESATIVAR ZOOM ====
 function laserDesativarZoom(jogador) {
     try {
         jogador.camera.setFov({
@@ -1548,26 +2167,39 @@ function laserDesativarZoom(jogador) {
     } catch (e) {}
 }
 
+// ==== LOOP: HUD DE MUNICAO (PISTOLA) + MIRA DA LUNETA (SNIPER) ====
 system.runInterval(() => {
     try {
         const jogadores = world.getAllPlayers();
+
         for (const jogador of jogadores) {
             try {
                 const equipamento = jogador.getComponent("minecraft:equippable");
                 if (!equipamento) continue;
-                const itemMao = equipamento.getEquipment(EquipmentSlot.Mainhand);
-                if (!itemMao) continue;
-                const tipoItem = itemMao.typeId;
 
+                const itemMao = equipamento.getEquipment(EquipmentSlot.Mainhand);
+                const tipoItem = itemMao ? itemMao.typeId : null;
+
+                // Estado de mira preso (morte/teleporte com o botao pressionado): resetar
+                if (tipoItem !== LASER_CONFIG.identificadorSniper && laserJogadorMirando.get(jogador.id)) {
+                    laserJogadorMirando.set(jogador.id, false);
+                    laserDesativarZoom(jogador);
+                }
+
+                if (!itemMao) continue;
+
+                // Se esta mirando com sniper, mostra HUD da luneta
                 if (tipoItem === LASER_CONFIG.identificadorSniper && laserJogadorMirando.get(jogador.id)) {
                     const totalMunicao = laserContarMunicao(jogador, LASER_CONFIG.identificadorMunicaoSniper);
                     const tickInicio = laserJogadorInicioMira.get(jogador.id) || system.currentTick;
                     const tempoMirando = system.currentTick - tickInicio;
 
+                    // Barra de carga - 1.0s = 20 ticks (max_draw_duration do item)
                     let cargaPct = Math.min(tempoMirando / 20, 1.0);
                     let barraCheia = Math.floor(cargaPct * 8);
                     let corBarra = cargaPct >= 1.0 ? "§a" : "§e";
                     let barra = corBarra + "█".repeat(barraCheia) + "§8" + "░".repeat(8 - barraCheia);
+
                     let corMunicao = totalMunicao > 0 ? "§b" : "§4";
                     let statusCarga = cargaPct >= 1.0 ? "§a§lPRONTO" : "§eCarregando...";
 
@@ -1577,8 +2209,10 @@ system.runInterval(() => {
                     continue;
                 }
 
+                // HUD normal de municao (pistola ou sniper sem mirar)
                 let tipoMunicao = null;
                 let nomeArma = "";
+
                 if (tipoItem === LASER_CONFIG.identificadorPistola) {
                     tipoMunicao = LASER_CONFIG.identificadorMunicao;
                     nomeArma = "Pistola";
@@ -1590,6 +2224,7 @@ system.runInterval(() => {
                 }
 
                 const totalMunicao = laserContarMunicao(jogador, tipoMunicao);
+
                 let cor = "§a";
                 if (totalMunicao <= 8) cor = "§e";
                 if (totalMunicao <= 3) cor = "§c";
@@ -1598,31 +2233,40 @@ system.runInterval(() => {
                 const mensagem = totalMunicao > 0
                     ? `${cor}⚡ ${nomeArma}: ${totalMunicao} munição`
                     : `§4⚡ SEM MUNIÇÃO! Crafta mais`;
+
                 jogador.onScreenDisplay.setActionBar(mensagem);
             } catch (e) {}
         }
     } catch (e) {}
 }, LASER_CONFIG.intervaloLuneta);
 
+// ==== EVENTO: COMECOU A MIRAR (segurando botao) ====
 world.afterEvents.itemStartUse.subscribe((evento) => {
     try {
         const jogador = evento.source;
         const item = evento.itemStack;
+
         if (!item || item.typeId !== LASER_CONFIG.identificadorSniper) return;
 
+        // Marcar que esta mirando
         laserJogadorMirando.set(jogador.id, true);
         laserJogadorInicioMira.set(jogador.id, system.currentTick);
+
+        // Zoom via Camera API (NAO usa Slowness!)
         laserAtivarZoom(jogador);
 
+        // Som de ativar luneta
         try {
             jogador.playSound("armor.equip_iron", { volume: 0.3, pitch: 1.5 });
         } catch (e) {}
     } catch (e) {}
 });
 
+// ==== EVENTO: CANCELOU MIRA (soltou sem atirar/trocou item) ====
 world.afterEvents.itemStopUse.subscribe((evento) => {
     try {
         const jogador = evento.source;
+
         if (laserJogadorMirando.get(jogador.id)) {
             laserJogadorMirando.set(jogador.id, false);
             laserDesativarZoom(jogador);
@@ -1630,22 +2274,27 @@ world.afterEvents.itemStopUse.subscribe((evento) => {
     } catch (e) {}
 });
 
+// ==== EVENTO: DISPARO (soltou o botao = atirou) ====
 world.afterEvents.itemReleaseUse.subscribe((evento) => {
     try {
         const jogador = evento.source;
         const item = evento.itemStack;
         if (!item) return;
+
         const tipoItem = item.typeId;
 
+        // Pistola Laser - disparo rapido
         if (tipoItem === LASER_CONFIG.identificadorPistola) {
             try {
                 jogador.playSound("firework.blast", { volume: 0.5, pitch: 1.8 });
             } catch (e) {}
         }
 
+        // Rifle Sniper - disparo poderoso + desativar zoom
         if (tipoItem === LASER_CONFIG.identificadorSniper) {
             laserJogadorMirando.set(jogador.id, false);
             laserDesativarZoom(jogador);
+
             try {
                 jogador.playSound("firework.large_blast", { volume: 0.8, pitch: 0.6 });
             } catch (e) {}
@@ -1656,42 +2305,58 @@ world.afterEvents.itemReleaseUse.subscribe((evento) => {
     } catch (e) {}
 });
 
-world.afterEvents.entityHitEntity.subscribe((evento) => {
+// ==== EVENTO: PROJETIL ACERTA ENTIDADE ====
+// projectileHitEntity e o evento correto para projeteis (entityHitEntity so cobre corpo a corpo)
+world.afterEvents.projectileHitEntity.subscribe((evento) => {
     try {
-        const projetil = evento.damagingEntity;
-        const alvo = evento.hitEntity;
-        if (!projetil) return;
-        const tipoProjetil = projetil.typeId;
+        let tipoProjetil = null;
+        try { tipoProjetil = evento.projectile ? evento.projectile.typeId : null; } catch (e) {}
+        if (!tipoProjetil) return;
 
+        const dim = evento.dimension;
+        const pos = evento.location;
+
+        // Projetil da Pistola Laser
         if (tipoProjetil === LASER_CONFIG.identificadorProjetil) {
             try {
-                const posAlvo = alvo.location;
-                alvo.dimension.spawnParticle("minecraft:basic_flame_particle", {
-                    x: posAlvo.x, y: posAlvo.y + 1, z: posAlvo.z
+                dim.spawnParticle("minecraft:basic_flame_particle", {
+                    x: pos.x, y: pos.y + 0.5, z: pos.z
                 });
             } catch (e) {}
             try {
-                alvo.dimension.playSound("random.fizz", alvo.location, { volume: 0.8, pitch: 1.5 });
+                dim.playSound("random.fizz", pos, { volume: 0.8, pitch: 1.5 });
             } catch (e) {}
         }
 
+        // Projetil do Sniper
         if (tipoProjetil === LASER_CONFIG.identificadorProjetilSniper) {
             try {
-                const posAlvo = alvo.location;
-                alvo.dimension.spawnParticle("minecraft:critical_hit_emitter", {
-                    x: posAlvo.x, y: posAlvo.y + 1, z: posAlvo.z
+                dim.spawnParticle("minecraft:critical_hit_emitter", {
+                    x: pos.x, y: pos.y + 0.5, z: pos.z
                 });
-                alvo.dimension.spawnParticle("minecraft:endrod", {
-                    x: posAlvo.x, y: posAlvo.y + 1.5, z: posAlvo.z
+                dim.spawnParticle("minecraft:endrod", {
+                    x: pos.x, y: pos.y + 1.0, z: pos.z
                 });
             } catch (e) {}
             try {
-                alvo.dimension.playSound("random.explode", alvo.location, { volume: 0.6, pitch: 1.2 });
+                dim.playSound("random.explode", pos, { volume: 0.6, pitch: 1.2 });
             } catch (e) {}
         }
     } catch (e) {}
 });
 
+// ==== EVENTO: RESPAWN - limpa estado de mira ====
+world.afterEvents.playerSpawn.subscribe((evento) => {
+    try {
+        const jogador = evento.player;
+        if (laserJogadorMirando.get(jogador.id)) {
+            laserJogadorMirando.set(jogador.id, false);
+            laserDesativarZoom(jogador);
+        }
+    } catch (e) {}
+});
+
+// ==== LIMPEZA: JOGADOR SAI ====
 world.afterEvents.playerLeave.subscribe((evento) => {
     laserJogadorMirando.delete(evento.playerId);
     laserJogadorInicioMira.delete(evento.playerId);
@@ -1699,10 +2364,10 @@ world.afterEvents.playerLeave.subscribe((evento) => {
 });
 
 // ████████████████████████████████████████████████████████████████
-// ██  5. CACTUS ZUMBI                                          ██
-// ██  Pocao arremessavel que transforma cactus em Cactus Zumbi ██
+// ██  5. CACTUS ZUMBI                                            ██
 // ████████████████████████████████████████████████████████████████
 
+// ==== CONFIGURACAO ====
 const CACTUS_CONFIG = {
     raioDeteccaoCactus: 2,
     intervaloTracking: 2,
@@ -1716,9 +2381,11 @@ const CACTUS_CONFIG = {
     chancePlantarCactus: 0.05,
 };
 
+// ==== ESTADO ====
 const cactusPocaoData = new Map();
 const cactusProcessedPocoes = new Set();
 
+// ==== LOOP: TRACKING DE PROJETEIS ====
 system.runInterval(() => {
     const nomeDimensoes = ["overworld", "nether", "the_end"];
     const idsVivos = new Set();
@@ -1731,8 +2398,10 @@ system.runInterval(() => {
             for (const pocao of pocoes) {
                 idsVivos.add(pocao.id);
                 if (cactusProcessedPocoes.has(pocao.id)) continue;
+
                 const loc = pocao.location;
 
+                // Primeiro registro
                 if (!cactusPocaoData.has(pocao.id)) {
                     cactusPocaoData.set(pocao.id, {
                         tickSpawn: system.currentTick,
@@ -1745,27 +2414,35 @@ system.runInterval(() => {
 
                 const dados = cactusPocaoData.get(pocao.id);
                 const idade = system.currentTick - dados.tickSpawn;
+
+                // Calcular velocidade
                 const dx = loc.x - dados.ultimoX;
                 const dy = loc.y - dados.ultimoY;
                 const dz = loc.z - dados.ultimoZ;
                 const velocidade = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
                 dados.ultimoX = loc.x;
                 dados.ultimoY = loc.y;
                 dados.ultimoZ = loc.z;
 
+                // Timeout
                 if (idade > CACTUS_CONFIG.timeoutProjetil) {
                     cactusProcessedPocoes.add(pocao.id);
                     try { pocao.kill(); } catch (e) {}
                     continue;
                 }
+
+                // Ainda se movendo
                 if (velocidade > CACTUS_CONFIG.limiteVelocidade) continue;
 
+                // Parou! Procurar cactus
                 cactusProcessedPocoes.add(pocao.id);
                 cactusProcessarImpactoPocao(dim, loc, pocao);
             }
         } catch (e) {}
     }
 
+    // Limpeza de dados de projeteis mortos
     for (const [id] of cactusPocaoData) {
         if (!idsVivos.has(id)) {
             cactusPocaoData.delete(id);
@@ -1774,6 +2451,7 @@ system.runInterval(() => {
     }
 }, CACTUS_CONFIG.intervaloTracking);
 
+// ==== FUNCAO: PROCESSAR IMPACTO DA POCAO ====
 function cactusProcessarImpactoPocao(dim, loc, pocao) {
     const raio = CACTUS_CONFIG.raioDeteccaoCactus;
     const cx = Math.floor(loc.x);
@@ -1787,6 +2465,7 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
                     const bloco = dim.getBlock({ x, y, z });
                     if (!bloco || bloco.typeId !== "minecraft:cactus") continue;
 
+                    // Encontrou cactus! Achar topo da coluna
                     let topoY = y;
                     while (true) {
                         try {
@@ -1799,6 +2478,7 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
                         } catch (e) { break; }
                     }
 
+                    // Verificar se tem flor acima do topo
                     let temFlor = false;
                     try {
                         const blocoAcimaTopo = dim.getBlock({ x, y: topoY + 1, z });
@@ -1816,6 +2496,7 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
                         }
                     } catch (e) {}
 
+                    // Achar base da coluna de cactus
                     let baseY = y;
                     while (baseY > cy - 10) {
                         try {
@@ -1828,6 +2509,7 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
                         } catch (e) { break; }
                     }
 
+                    // Remover flor se existia
                     if (temFlor) {
                         try {
                             const blocoFlor = dim.getBlock({ x, y: topoY + 1, z });
@@ -1835,6 +2517,7 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
                         } catch (e) {}
                     }
 
+                    // Remover todos os blocos de cactus da coluna
                     for (let ry = topoY; ry >= baseY; ry--) {
                         try {
                             const blocoCactus = dim.getBlock({ x, y: ry, z });
@@ -1842,6 +2525,7 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
                         } catch (e) {}
                     }
 
+                    // Spawnar Cactus Zumbi
                     const tipoMob = temFlor
                         ? "cactus_zumbi:cactus_zumbi_bom"
                         : "cactus_zumbi:cactus_zumbi_mau";
@@ -1854,6 +2538,7 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
                                 z: z + 0.5,
                             });
 
+                            // Particulas de transformacao
                             for (let p = 0; p < 5; p++) {
                                 dim.spawnParticle("minecraft:villager_happy", {
                                     x: x + 0.5 + (Math.random() - 0.5),
@@ -1862,21 +2547,24 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
                                 });
                             }
 
+                            // Som de transformacao
                             dim.playSound("mob.zombie.remedy", {
                                 x: x + 0.5,
                                 y: baseY + 1,
                                 z: z + 0.5,
                             });
 
+                            // Mensagem
                             const nome = temFlor
-                                ? "§aCactus Zumbi Bom"
-                                : "§cCactus Zumbi Mau";
+                                ? "\u00A7aCactus Zumbi Bom"
+                                : "\u00A7cCactus Zumbi Mau";
                             world.sendMessage(
-                                `§e[Cactus Zumbi] ${nome}§e surgiu!`
+                                `\u00A7e[Cactus Zumbi] ${nome}\u00A7e surgiu!`
                             );
                         } catch (e) {}
                     });
 
+                    // Matar projetil
                     try { pocao.kill(); } catch (e) {}
                     return;
                 } catch (e) {}
@@ -1884,24 +2572,31 @@ function cactusProcessarImpactoPocao(dim, loc, pocao) {
         }
     }
 
+    // Nao encontrou cactus - pocao desperdicada
     try { pocao.kill(); } catch (e) {}
 }
 
+// ==== ESPINHOS DE CONTATO ====
 world.afterEvents.entityHitEntity.subscribe((evento) => {
     try {
         const atacante = evento.damagingEntity;
         const alvo = evento.hitEntity;
+
+        // Se alguem bateu no cactus zumbi, toma dano de espinhos
         if (alvo && alvo.typeId && alvo.typeId.startsWith("cactus_zumbi:cactus_zumbi")) {
             try {
                 atacante.applyDamage(CACTUS_CONFIG.danoEspinhos, { cause: "contact" });
+
+                // Particula de espinho
                 const loc = atacante.location;
                 const dim = atacante.dimension;
-                dim.spawnParticle("minecraft:crit_emitter", loc);
+                dim.spawnParticle("minecraft:critical_hit_emitter", loc);
             } catch (e) {}
         }
     } catch (e) {}
 });
 
+// ==== EXPLOSAO DE ESPINHOS AO MORRER ====
 world.afterEvents.entityDie.subscribe((evento) => {
     try {
         const entidade = evento.deadEntity;
@@ -1912,6 +2607,7 @@ world.afterEvents.entityDie.subscribe((evento) => {
         const dim = entidade.dimension;
         const raio = CACTUS_CONFIG.raioExplosaoMorte;
 
+        // Buscar entidades no raio
         const entidadesProximas = dim.getEntities({
             location: loc,
             maxDistance: raio,
@@ -1921,8 +2617,11 @@ world.afterEvents.entityDie.subscribe((evento) => {
             try {
                 if (ent.id === entidade.id) continue;
                 if (!ent.isValid()) continue;
+
+                // Aplicar dano
                 ent.applyDamage(CACTUS_CONFIG.danoExplosaoMorte, { cause: "contact" });
 
+                // Aplicar knockback
                 const dx = ent.location.x - loc.x;
                 const dz = ent.location.z - loc.z;
                 const dist = Math.sqrt(dx * dx + dz * dz);
@@ -1933,9 +2632,10 @@ world.afterEvents.entityDie.subscribe((evento) => {
             } catch (e) {}
         }
 
+        // Particulas de explosao
         for (let p = 0; p < 10; p++) {
             try {
-                dim.spawnParticle("minecraft:crit_emitter", {
+                dim.spawnParticle("minecraft:critical_hit_emitter", {
                     x: loc.x + (Math.random() - 0.5) * 3,
                     y: loc.y + Math.random() * 2,
                     z: loc.z + (Math.random() - 0.5) * 3,
@@ -1943,14 +2643,20 @@ world.afterEvents.entityDie.subscribe((evento) => {
             } catch (e) {}
         }
 
+        // Som de explosao
         try {
             dim.playSound("random.explode", loc);
         } catch (e) {}
     } catch (e) {}
 });
 
+// Ultima posicao (em blocos) de cada cactus zumbi: mob.id -> {x, y, z}
+const cactusUltimaPosMob = new Map();
+
+// ==== LOOP AMBIENTAL: REGENERACAO, DANO AGUA, PLANTAR CACTUS ====
 system.runInterval(() => {
     const nomeDimensoes = ["overworld", "nether", "the_end"];
+    const idsMobsVivos = new Set();
 
     for (const nomeDim of nomeDimensoes) {
         try {
@@ -1962,14 +2668,21 @@ system.runInterval(() => {
             for (const mob of todosMobs) {
                 try {
                     if (!mob.isValid()) continue;
+                    idsMobsVivos.add(mob.id);
                     const loc = mob.location;
                     const bx = Math.floor(loc.x);
                     const by = Math.floor(loc.y);
                     const bz = Math.floor(loc.z);
 
+                    // Posicao anterior (onde o mob estava no ultimo ciclo)
+                    const posAnterior = cactusUltimaPosMob.get(mob.id);
+                    cactusUltimaPosMob.set(mob.id, { x: bx, y: by, z: bz });
+
+                    // Bloco abaixo e bloco na posicao do mob
                     const blocoAbaixo = dim.getBlock({ x: bx, y: by - 1, z: bz });
                     const blocoEm = dim.getBlock({ x: bx, y: by, z: bz });
 
+                    // Regeneracao na areia
                     if (blocoAbaixo && (blocoAbaixo.typeId === "minecraft:sand" ||
                         blocoAbaixo.typeId === "minecraft:red_sand")) {
                         try {
@@ -1981,6 +2694,7 @@ system.runInterval(() => {
                                         saude.effectiveMax
                                     )
                                 );
+                                // Particula de cura
                                 dim.spawnParticle("minecraft:villager_happy", {
                                     x: loc.x,
                                     y: loc.y + 1,
@@ -1990,6 +2704,7 @@ system.runInterval(() => {
                         } catch (e) {}
                     }
 
+                    // Dano na agua
                     if (blocoEm && (blocoEm.typeId === "minecraft:water" ||
                         blocoEm.typeId === "minecraft:flowing_water")) {
                         try {
@@ -1997,17 +2712,22 @@ system.runInterval(() => {
                         } catch (e) {}
                     }
 
-                    if (mob.isValid() && Math.random() < CACTUS_CONFIG.chancePlantarCactus) {
+                    // Plantar cactus no rastro: so na posicao ANTERIOR, e so se o mob saiu dela
+                    const saiuDoBloco = posAnterior &&
+                        (posAnterior.x !== bx || posAnterior.y !== by || posAnterior.z !== bz);
+                    if (saiuDoBloco && mob.isValid() && Math.random() < CACTUS_CONFIG.chancePlantarCactus) {
                         try {
-                            const blocoAtras = dim.getBlock({ x: bx, y: by, z: bz });
-                            const blocoBase = dim.getBlock({ x: bx, y: by - 1, z: bz });
+                            const ax = posAnterior.x, ay = posAnterior.y, az = posAnterior.z;
+                            const blocoAtras = dim.getBlock({ x: ax, y: ay, z: az });
+                            const blocoBase = dim.getBlock({ x: ax, y: ay - 1, z: az });
 
                             if (blocoAtras && blocoAtras.typeId === "minecraft:air" &&
                                 blocoBase && blocoBase.typeId === "minecraft:sand") {
-                                const adj1 = dim.getBlock({ x: bx + 1, y: by, z: bz });
-                                const adj2 = dim.getBlock({ x: bx - 1, y: by, z: bz });
-                                const adj3 = dim.getBlock({ x: bx, y: by, z: bz + 1 });
-                                const adj4 = dim.getBlock({ x: bx, y: by, z: bz - 1 });
+                                // Verificar se nao ha blocos adjacentes (cactus precisa espaco)
+                                const adj1 = dim.getBlock({ x: ax + 1, y: ay, z: az });
+                                const adj2 = dim.getBlock({ x: ax - 1, y: ay, z: az });
+                                const adj3 = dim.getBlock({ x: ax, y: ay, z: az + 1 });
+                                const adj4 = dim.getBlock({ x: ax, y: ay, z: az - 1 });
 
                                 const temBlocoAdjacente =
                                     (adj1 && adj1.typeId !== "minecraft:air") ||
@@ -2024,5 +2744,10 @@ system.runInterval(() => {
                 } catch (e) {}
             }
         } catch (e) {}
+    }
+
+    // Limpar posicoes de mobs que nao existem mais
+    for (const [id] of cactusUltimaPosMob) {
+        if (!idsMobsVivos.has(id)) cactusUltimaPosMob.delete(id);
     }
 }, CACTUS_CONFIG.intervaloAmbiental);

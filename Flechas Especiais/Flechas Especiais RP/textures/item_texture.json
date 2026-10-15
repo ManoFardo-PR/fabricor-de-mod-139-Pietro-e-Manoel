@@ -13,6 +13,9 @@
         },
         "flecha_paralisia": {
             "textures": "textures/items/flecha_paralisia"
+        },
+        "arco_especial": {
+            "textures": "textures/items/arco_especial"
         }
     }
 }

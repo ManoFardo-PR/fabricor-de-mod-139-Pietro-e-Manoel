@@ -1,4 +1,17 @@
+// ============================================================
+//  SUPER PICARETA - Script Principal
+//  Super Picareta, TNT Arremessavel, Bomba Submarina,
+//  Pistola Sinalizadora e Espada de Fogo
+// ============================================================
+
 import { world, system, BlockPermutation } from "@minecraft/server";
+
+// Blocos que o tunel nunca apaga (alem de minerios e bedrock)
+const BLOCOS_PRESERVADOS_PICARETA = new Set([
+    "minecraft:chest", "minecraft:trapped_chest", "minecraft:barrel",
+    "minecraft:mob_spawner", "minecraft:ender_chest", "minecraft:shulker_box",
+    "minecraft:undyed_shulker_box", "minecraft:end_portal_frame", "minecraft:spore_blossom"
+]);
 
 world.afterEvents.playerBreakBlock.subscribe((event) => {
     const player = event.player;
@@ -66,8 +79,9 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
 
                         const id = block.typeId;
 
-                        // Preserva minerios, ancient debris e bedrock
-                        if (id.includes("ore") || id === "minecraft:ancient_debris" || id === "minecraft:bedrock") continue;
+                        // Preserva minerios, ancient debris, bedrock e blocos com conteudo
+                        if (id.endsWith("_ore") || id === "minecraft:ancient_debris" || id === "minecraft:bedrock") continue;
+                        if (BLOCOS_PRESERVADOS_PICARETA.has(id)) continue;
 
                         // Remove tudo que nao for minerio ou bedrock
                         block.setType("minecraft:air");
@@ -139,7 +153,6 @@ function applyExplosionKnockback(dimension, center, radius, horizontalStrength, 
 
 // ============================================================
 // Funcao auxiliar: Quebra blocos em esfera (para uso subaquatico)
-// Explosoes na agua do Minecraft NAO quebram blocos!
 // ============================================================
 
 function breakBlocksInSphere(dimension, center, radius) {
@@ -181,28 +194,21 @@ function explodeTNT(projectile, location, dimension, isEntityHit, hitEntity) {
     system.run(() => {
         try {
             if (isEntityHit) {
-                // === HIT EM ENTIDADE: dano massivo + knockback brutal ===
-                // Knockback PRIMEIRO (antes da explosao matar as entidades)
                 applyExplosionKnockback(dimension, location, 8, 8.0, 3.5);
 
-                // Dano direto na entidade atingida
                 if (hitEntity) {
                     try {
                         hitEntity.applyDamage(25, { cause: "entityExplosion" });
                     } catch (e) {}
                 }
 
-                // Explosao visual + dano de area (raio 3)
                 dimension.createExplosion(location, 3, {
                     breaksBlocks: true,
                     causesFire: false
                 });
             } else {
-                // === HIT EM BLOCO: cratera pequena + knockback forte ===
-                // Knockback primeiro
                 applyExplosionKnockback(dimension, location, 6, 5.0, 2.0);
 
-                // Explosao com cratera (raio 2)
                 dimension.createExplosion(location, 2, {
                     breaksBlocks: true,
                     causesFire: false
@@ -211,7 +217,6 @@ function explodeTNT(projectile, location, dimension, isEntityHit, hitEntity) {
         } catch (e) {
             world.sendMessage("§c[TNT] Erro explosao: " + e.message);
         } finally {
-            // Matar a entidade projetil (ja que usamos stick_in_ground)
             try { projectile.kill(); } catch (e) {}
             system.runTimeout(() => explodedTNTs.delete(entityId), 10);
         }
@@ -226,7 +231,7 @@ world.afterEvents.projectileHitBlock.subscribe((event) => {
     } catch (e) {}
 });
 
-// Quando a TNT atinge uma ENTIDADE (mob, jogador, animal)
+// Quando a TNT atinge uma ENTIDADE
 world.afterEvents.projectileHitEntity.subscribe((event) => {
     try {
         if (event.projectile.typeId !== "escavadora:tnt_arremessavel") return;
@@ -239,8 +244,11 @@ world.afterEvents.projectileHitEntity.subscribe((event) => {
     } catch (e) {}
 });
 
-// Fallback: se os eventos nao dispararam, detecta TNT presa (stick_in_ground)
-const tntSpawnTick = new Map();
+// Fallback: detecta TNT presa (parada ha mais de 2s) ou perdida (viva ha mais de 10s)
+const TNT_FALLBACK_IDADE_MIN = 40;     // ticks antes de considerar "presa"
+const TNT_FALLBACK_IDADE_MAX = 200;    // teto absoluto: explode mesmo em movimento
+const TNT_FALLBACK_VEL_PARADA = 0.05;  // deslocamento (blocos / 2 ticks) abaixo do qual esta parada
+const tntTrack = new Map(); // id -> { spawnTick, lastX, lastY, lastZ }
 system.runInterval(() => {
     const aliveTntIds = new Set();
     const tntDimNames = ["overworld", "nether", "the_end"];
@@ -251,22 +259,27 @@ system.runInterval(() => {
             for (const tnt of tnts) {
                 aliveTntIds.add(tnt.id);
                 if (explodedTNTs.has(tnt.id)) continue;
-                if (!tntSpawnTick.has(tnt.id)) {
-                    tntSpawnTick.set(tnt.id, system.currentTick);
+                const loc = tnt.location;
+                if (!tntTrack.has(tnt.id)) {
+                    tntTrack.set(tnt.id, { spawnTick: system.currentTick, lastX: loc.x, lastY: loc.y, lastZ: loc.z });
                     continue;
                 }
-                const age = system.currentTick - tntSpawnTick.get(tnt.id);
-                // Apos 40 ticks (2s), se ainda existe, os eventos falharam - explodir!
-                if (age > 40) {
-                    explodeTNT(tnt, tnt.location, dim, false, null);
-                    tntSpawnTick.delete(tnt.id);
+                const t = tntTrack.get(tnt.id);
+                const age = system.currentTick - t.spawnTick;
+                const tdx = loc.x - t.lastX, tdy = loc.y - t.lastY, tdz = loc.z - t.lastZ;
+                const vel = Math.sqrt(tdx * tdx + tdy * tdy + tdz * tdz);
+                t.lastX = loc.x; t.lastY = loc.y; t.lastZ = loc.z;
+
+                const presa = age > TNT_FALLBACK_IDADE_MIN && vel < TNT_FALLBACK_VEL_PARADA;
+                if (presa || age > TNT_FALLBACK_IDADE_MAX) {
+                    explodeTNT(tnt, loc, dim, false, null);
+                    tntTrack.delete(tnt.id);
                 }
             }
         } catch (e) {}
     }
-    // Limpar entradas stale de entidades que ja nao existem
-    for (const [tid] of tntSpawnTick) {
-        if (!aliveTntIds.has(tid)) tntSpawnTick.delete(tid);
+    for (const [tid] of tntTrack) {
+        if (!aliveTntIds.has(tid)) tntTrack.delete(tid);
     }
 }, 2);
 
@@ -275,8 +288,7 @@ system.runInterval(() => {
 // ============================================================
 
 const explodedSubmarines = new Set();
-// Rastreia posicao anterior para detectar quando parou de se mover
-const submarineData = new Map(); // id -> { spawnTick, lastX, lastY, lastZ }
+const submarineData = new Map();
 
 function explodeSubmarineLand(entity, dimension, location) {
     if (explodedSubmarines.has(entity.id)) return;
@@ -284,7 +296,6 @@ function explodeSubmarineLand(entity, dimension, location) {
 
     system.run(() => {
         try {
-            // Em terra: explosao PEQUENA (3-4 blocos)
             applyExplosionKnockback(dimension, location, 4, 3.0, 1.0);
             dimension.createExplosion(location, 1.5, {
                 breaksBlocks: true,
@@ -305,17 +316,11 @@ function explodeSubmarineWater(entity, dimension, location) {
 
     system.run(() => {
         try {
-            // Na agua: DEVASTACAO!
-            // Knockback forte primeiro
             applyExplosionKnockback(dimension, location, 6, 5.0, 2.0);
-
-            // Explosao para visual + som + dano em entidades
             dimension.createExplosion(location, 4, {
-                breaksBlocks: false, // agua absorve, nao adianta
+                breaksBlocks: false,
                 causesFire: false
             });
-
-            // Quebra MANUAL de blocos em esfera (a agua absorve explosoes normais!)
             breakBlocksInSphere(dimension, location, 5);
         } catch (e) {
             world.sendMessage("§c[Bomba] Erro agua: " + e.message);
@@ -326,7 +331,7 @@ function explodeSubmarineWater(entity, dimension, location) {
     });
 }
 
-// Monitora bombas submarinas - rastreia velocidade por posicao
+// Monitora bombas submarinas
 system.runInterval(() => {
     const dimNames = ["overworld", "nether", "the_end"];
     const aliveSubIds = new Set();
@@ -345,7 +350,6 @@ system.runInterval(() => {
             try {
                 const loc = sub.location;
 
-                // Primeiro registro: salva posicao e tick de spawn
                 if (!submarineData.has(sub.id)) {
                     submarineData.set(sub.id, {
                         spawnTick: system.currentTick,
@@ -373,7 +377,7 @@ system.runInterval(() => {
                     }
                 } catch (e) {}
 
-                // Grace period: 10 ticks (evitar explodir nos pes do jogador)
+                // Grace period
                 if (age < 10) {
                     data.lastX = loc.x;
                     data.lastY = loc.y;
@@ -381,20 +385,17 @@ system.runInterval(() => {
                     continue;
                 }
 
-                // Calcula velocidade baseada em mudanca de posicao
-                const dx = loc.x - data.lastX;
-                const dy = loc.y - data.lastY;
-                const dz = loc.z - data.lastZ;
-                const speed = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                // Calcula velocidade
+                const sdx = loc.x - data.lastX;
+                const sdy = loc.y - data.lastY;
+                const sdz = loc.z - data.lastZ;
+                const speed = Math.sqrt(sdx * sdx + sdy * sdy + sdz * sdz);
 
-                // Atualiza posicao para proximo tick
                 data.lastX = loc.x;
                 data.lastY = loc.y;
                 data.lastZ = loc.z;
 
-                // Se ainda esta se movendo rapido, espera
                 if (speed > 0.05) {
-                    // Seguranca: explodir apos 10 segundos
                     if (age > 200) {
                         const block = dim.getBlock({ x: Math.floor(loc.x), y: Math.floor(loc.y), z: Math.floor(loc.z) });
                         const inWater = block && (block.typeId === "minecraft:water" || block.typeId === "minecraft:flowing_water");
@@ -408,44 +409,35 @@ system.runInterval(() => {
                 }
 
                 // Entidade parou! Detectar ambiente
-                const blockX = Math.floor(loc.x);
-                const blockY = Math.floor(loc.y);
-                const blockZ = Math.floor(loc.z);
-
-                const blockAtPos = dim.getBlock({ x: blockX, y: blockY, z: blockZ });
+                const blockAtPos = dim.getBlock({ x: Math.floor(loc.x), y: Math.floor(loc.y), z: Math.floor(loc.z) });
                 if (!blockAtPos) continue;
 
                 const blockId = blockAtPos.typeId;
                 const isInWater = blockId === "minecraft:water" || blockId === "minecraft:flowing_water";
 
                 if (isInWater) {
-                    // Na agua e parou = fundo da agua! DEVASTAR!
                     explodeSubmarineWater(sub, dim, loc);
                 } else {
-                    // Em terra e parou = explodir pequeno
                     explodeSubmarineLand(sub, dim, loc);
                 }
             } catch (e) {}
         }
     }
 
-    // Limpar submarineData de entidades que ja nao existem
     for (const [sid] of submarineData) {
         if (!aliveSubIds.has(sid)) submarineData.delete(sid);
     }
-    // Limpar explodedSubmarines stale (manter max 50 entradas, remover as que nao tem entidade viva)
     if (explodedSubmarines.size > 50) {
         for (const sid of explodedSubmarines) {
             if (!aliveSubIds.has(sid)) explodedSubmarines.delete(sid);
         }
     }
-}, 2); // A cada 2 ticks (para comparar posicoes)
+}, 2);
 
 // ████████████████████████████████████████████████████████████████
-// ██  PISTOLA SINALIZADORA - FLARE GUN - INICIO DO BLOCO      ██
+// ██  PISTOLA SINALIZADORA - FLARE GUN                         ██
 // ████████████████████████████████████████████████████████████████
 
-// --- [FLARE] Configuracao centralizada ---
 const FLARE_CONFIG = {
     duration: { land: 1200, water: 600 },
     trail: { enabled: true, lightLevel: 14 },
@@ -469,20 +461,41 @@ const FLARE_CONFIG = {
         impact: { particle: "minecraft:basic_flame_particle", count: 5 }
     },
     maxLanded: 5,
-    flightTimeout: 200
+    flightTimeout: 200,
+    gun: {
+        itemId: "escavadora:pistola_sinalizadora",
+        power: 1.2,           // velocidade inicial do sinalizador (blocos/tick)
+        spawnDistance: 0.8    // distancia a frente da cabeca onde o projetil nasce
+    }
 };
 
-// --- [FLARE] Tracking ---
-const flightFlares = new Map();  // entityId -> { lastPos, bounceCount, spawnTick, dimName, lightPos }
-const landedFlares = new Map();  // "x,y,z" -> { landTick, inWater, halfDuration, dimId, loc, lightPos }
+const flightFlares = new Map();
+const landedFlares = new Map();
+const pendingLightRemovals = [];
+const MAX_LIGHT_REMOVAL_RETRIES = 600;
 
 // --- [FLARE] Persistencia (sobrevive a /reload e recarga de mundo) ---
 const FLARE_PROP_KEY = "escavadora:landed_flares";
 let landedFlaresLoaded = false;
 
+// Duracao total de um flare pousado (ticks), conforme agua/terra e meia-duracao
+function flareDuracaoMaxima(data) {
+    let maxDuration = data.inWater ? FLARE_CONFIG.duration.water : FLARE_CONFIG.duration.land;
+    if (data.halfDuration) maxDuration = Math.floor(maxDuration / 2);
+    return maxDuration;
+}
+
+// Salva o tempo RESTANTE (nao o tick absoluto): system.currentTick reinicia ao reabrir o mundo
 function salvarLandedFlares() {
     try {
-        const arr = Array.from(landedFlares.entries());
+        const now = system.currentTick;
+        const arr = [];
+        for (const [k, d] of landedFlares) {
+            const copia = Object.assign({}, d);
+            copia.restante = flareDuracaoMaxima(d) - (now - d.landTick);
+            delete copia.landTick;
+            arr.push([k, copia]);
+        }
         world.setDynamicProperty(FLARE_PROP_KEY, JSON.stringify(arr));
     } catch (e) {}
 }
@@ -493,13 +506,68 @@ function carregarLandedFlares() {
         if (typeof raw !== "string" || !raw) return;
         const arr = JSON.parse(raw);
         if (!Array.isArray(arr)) return;
+        const now = system.currentTick;
         for (const [k, v] of arr) {
-            if (!landedFlares.has(k)) landedFlares.set(k, v);
+            if (!v || landedFlares.has(k)) continue;
+            const max = flareDuracaoMaxima(v);
+            let restante;
+            if (typeof v.restante === "number") {
+                restante = v.restante;
+            } else if (typeof v.landTick === "number") {
+                // Formato antigo (tick absoluto): so e confiavel na mesma sessao
+                restante = max - (now - v.landTick);
+            } else {
+                restante = 0;
+            }
+            if (restante <= 0) {
+                // Ja expirou: so garantir que a luz seja removida
+                queueLightRemoval(v.dimId || "overworld", v.lightPos);
+                continue;
+            }
+            v.landTick = now - (max - restante);
+            delete v.restante;
+            landedFlares.set(k, v);
         }
+        salvarLandedFlares();
     } catch (e) {}
 }
 
-// --- [FLARE] Funcoes auxiliares de iluminacao ---
+// ====  Enfileira remocao de luz para retry garantido  ====
+function queueLightRemoval(dimId, pos) {
+    if (!pos) return;
+    pendingLightRemovals.push({
+        dimId: dimId,
+        pos: { x: pos.x, y: pos.y, z: pos.z },
+        retries: 0
+    });
+}
+
+// ====  Processa fila de remocao de luzes pendentes  ====
+function processPendingLightRemovals() {
+    for (let i = pendingLightRemovals.length - 1; i >= 0; i--) {
+        const entry = pendingLightRemovals[i];
+        try {
+            const dim = world.getDimension(entry.dimId);
+            if (removeSingleLight(dim, entry.pos)) {
+                pendingLightRemovals.splice(i, 1);
+            } else {
+                entry.retries++;
+                if (entry.retries > MAX_LIGHT_REMOVAL_RETRIES) {
+                    try {
+                        const block = dim.getBlock(entry.pos);
+                        if (block) block.setType("minecraft:air");
+                    } catch (e) {}
+                    pendingLightRemovals.splice(i, 1);
+                }
+            }
+        } catch (e) {
+            entry.retries++;
+            if (entry.retries > MAX_LIGHT_REMOVAL_RETRIES) {
+                pendingLightRemovals.splice(i, 1);
+            }
+        }
+    }
+}
 
 function placeSingleLight(dimension, loc) {
     const x = Math.floor(loc.x), y = Math.floor(loc.y), z = Math.floor(loc.z);
@@ -524,18 +592,18 @@ function removeSingleLight(dimension, pos) {
             block.setType("minecraft:air");
             return true;
         }
-        return block ? true : false;  // true = removido ou ja nao e light, false = chunk descarregado
+        return block ? true : false;
     } catch (e) { return false; }
 }
-
-// --- [FLARE] Funcoes auxiliares ---
 
 function isFlammable(blockTypeId) {
     if (blockTypeId.includes("log") || blockTypeId.includes("planks") ||
         blockTypeId.includes("leaves") || blockTypeId.includes("wood") ||
         blockTypeId.includes("wool") || blockTypeId.includes("fence") ||
         blockTypeId.includes("carpet") || blockTypeId.includes("bamboo") ||
-        blockTypeId.includes("vine") || blockTypeId.includes("grass") ||
+        blockTypeId.includes("vine") ||
+        blockTypeId === "minecraft:short_grass" || blockTypeId === "minecraft:tall_grass" ||
+        blockTypeId === "minecraft:grass" ||
         blockTypeId.includes("fern") || blockTypeId.includes("wheat") ||
         blockTypeId.includes("flower") || blockTypeId.includes("azalea") ||
         blockTypeId.includes("moss") || blockTypeId.includes("hanging_roots") ||
@@ -628,8 +696,6 @@ function applyFlareFire(dimension, cx, cy, cz) {
     }
 }
 
-// --- [FLARE] Funcoes de bounce ---
-
 function calculateBouncedVelocity(face, hitVector) {
     const loss = FLARE_CONFIG.bounce.default.velocityLoss;
     let vx = hitVector.x * loss;
@@ -663,8 +729,6 @@ function handleBounce(hitBlockTypeId, face, hitVector, bounceCount) {
     return { action: "land", halfDuration: false };
 }
 
-// --- [FLARE] Funcao de pouso (flareLand) ---
-
 function flareLand(dimension, loc, halfDuration) {
     const cx = Math.floor(loc.x);
     const cy = Math.floor(loc.y);
@@ -673,7 +737,6 @@ function flareLand(dimension, loc, halfDuration) {
 
     if (landedFlares.has(key)) return;
 
-    // Limite de performance: remove o mais antigo se necessario
     if (landedFlares.size >= FLARE_CONFIG.maxLanded) {
         let oldestKey = null;
         let oldestTick = Infinity;
@@ -685,10 +748,7 @@ function flareLand(dimension, loc, halfDuration) {
         }
         if (oldestKey) {
             const old = landedFlares.get(oldestKey);
-            try {
-                const oldDim = world.getDimension(old.dimId);
-                removeSingleLight(oldDim, old.lightPos);
-            } catch (e) {}
+            queueLightRemoval(old.dimId, old.lightPos);
             landedFlares.delete(oldestKey);
             salvarLandedFlares();
         }
@@ -721,8 +781,64 @@ function flareLand(dimension, loc, halfDuration) {
     salvarLandedFlares();
 }
 
-// --- [FLARE] Evento: projectileHitBlock (bounce + pouso) ---
+// Flare: disparo pela Pistola Sinalizadora (arma reutilizavel com durabilidade)
+world.afterEvents.itemUse.subscribe((event) => {
+    try {
+        const jogador = event.source;
+        const item = event.itemStack;
+        if (!item || item.typeId !== FLARE_CONFIG.gun.itemId) return;
+        if (!jogador || jogador.typeId !== "minecraft:player") return;
 
+        const dir = jogador.getViewDirection();
+        const head = jogador.getHeadLocation();
+        const dist = FLARE_CONFIG.gun.spawnDistance;
+        const pos = { x: head.x + dir.x * dist, y: head.y + dir.y * dist - 0.1, z: head.z + dir.z * dist };
+        const dim = jogador.dimension;
+        const dimName = dim.id.replace("minecraft:", "");
+        const power = FLARE_CONFIG.gun.power;
+
+        system.run(() => {
+            try {
+                const flare = dim.spawnEntity("escavadora:sinalizador_projetil", pos);
+                const proj = flare.getComponent("minecraft:projectile");
+                if (proj) {
+                    try { proj.owner = jogador; } catch (e) {}
+                    proj.shoot({ x: dir.x * power, y: dir.y * power, z: dir.z * power }, { uncertainty: 0 });
+                }
+                flightFlares.set(flare.id, {
+                    lastPos: null,
+                    bounceCount: 0,
+                    spawnTick: system.currentTick,
+                    dimName: ["overworld", "nether", "the_end"].includes(dimName) ? dimName : "overworld",
+                    lightPos: null
+                });
+            } catch (e) {}
+        });
+
+        // Consumir durabilidade da pistola
+        try {
+            const inv = jogador.getComponent("minecraft:inventory").container;
+            const slot = jogador.selectedSlotIndex;
+            const naMao = inv.getItem(slot);
+            if (naMao && naMao.typeId === FLARE_CONFIG.gun.itemId) {
+                const dur = naMao.getComponent("minecraft:durability");
+                if (dur) {
+                    dur.damage = Math.min(dur.damage + 1, dur.maxDurability);
+                    if (dur.damage >= dur.maxDurability) {
+                        inv.setItem(slot, undefined);
+                        jogador.playSound("random.break");
+                    } else {
+                        inv.setItem(slot, naMao);
+                    }
+                }
+            }
+        } catch (e) {}
+
+        try { jogador.playSound("firework.blast", { volume: 0.8, pitch: 1.2 }); } catch (e) {}
+    } catch (e) {}
+});
+
+// Flare: projectileHitBlock (bounce + pouso)
 world.afterEvents.projectileHitBlock.subscribe((event) => {
     try {
         if (event.projectile.typeId !== "escavadora:sinalizador_projetil") return;
@@ -736,18 +852,16 @@ world.afterEvents.projectileHitBlock.subscribe((event) => {
     let projId;
     try { projId = event.projectile.id; } catch (e) { return; }
 
-    // Buscar dados de voo e limpar light_block
     let bounceCount = 0;
     const data = flightFlares.get(projId);
     if (data) {
         bounceCount = data.bounceCount;
-        removeSingleLight(dim, data.lightPos);
+        queueLightRemoval(dimNameStr, data.lightPos);
     }
 
     try { event.projectile.remove(); } catch (e) {}
     flightFlares.delete(projId);
 
-    // Capturar dados do evento ANTES de system.run
     let hitBlockTypeId = "";
     let hitFace = "Up";
     let hitVector = { x: 0, y: -0.5, z: 0 };
@@ -761,13 +875,11 @@ world.afterEvents.projectileHitBlock.subscribe((event) => {
     system.run(() => {
         spawnImpactParticles(dim, loc);
 
-        // handleBounce decide: land ou bounce
         const result = handleBounce(hitBlockTypeId, hitFace, hitVector, bounceCount);
 
         if (result.action === "land") {
             flareLand(dim, loc, result.halfDuration);
         } else {
-            // Bounce
             try {
                 const v = result.velocity;
                 const spawnY = (hitFace === "Down") ? loc.y - 0.2 : loc.y + 0.15;
@@ -792,8 +904,7 @@ world.afterEvents.projectileHitBlock.subscribe((event) => {
     });
 });
 
-// --- [FLARE] Evento: projectileHitEntity (fogo + dano + pouso) ---
-
+// Flare: projectileHitEntity
 world.afterEvents.projectileHitEntity.subscribe((event) => {
     try {
         if (event.projectile.typeId !== "escavadora:sinalizador_projetil") return;
@@ -813,16 +924,15 @@ world.afterEvents.projectileHitEntity.subscribe((event) => {
     const loc = event.location;
     const dim = event.dimension;
 
-    // Limpar light_block do voo
     const hitData = flightFlares.get(projId);
     if (hitData) {
-        removeSingleLight(dim, hitData.lightPos);
+        const rawId = dim.id.replace("minecraft:", "");
+        queueLightRemoval(rawId, hitData.lightPos);
     }
 
     try { event.projectile.remove(); } catch (e) {}
     flightFlares.delete(projId);
 
-    // Pousar no chao abaixo do ponto de impacto
     system.run(() => {
         let groundY = Math.floor(loc.y);
         try {
@@ -838,8 +948,7 @@ world.afterEvents.projectileHitEntity.subscribe((event) => {
     });
 });
 
-// --- [FLARE] Monitor: updateFlightFlares + updateLandedFlares ---
-
+// Flare: monitor de voo e pouso
 function updateFlightFlares(now, flareEntitiesMap) {
     for (const [id, data] of flightFlares) {
         const entityInfo = flareEntitiesMap.get(id);
@@ -851,7 +960,6 @@ function updateFlightFlares(now, flareEntitiesMap) {
             const dim = world.getDimension(entityInfo.dimName);
             const loc = flare.location;
 
-            // Efeitos visuais + luz quando muda de bloco
             const bx = Math.floor(loc.x);
             const by = Math.floor(loc.y);
             const bz = Math.floor(loc.z);
@@ -859,7 +967,6 @@ function updateFlightFlares(now, flareEntitiesMap) {
                 data.lastPos.x !== bx || data.lastPos.y !== by || data.lastPos.z !== bz;
 
             if (movedBlock) {
-                // Remove light_block anterior e coloca novo
                 removeSingleLight(dim, data.lightPos);
                 data.lightPos = placeSingleLight(dim, loc);
                 data.lastPos = { x: bx, y: by, z: bz };
@@ -867,12 +974,8 @@ function updateFlightFlares(now, flareEntitiesMap) {
             }
         }
 
-        // Safety: entidade sumiu ou timeout
         if (!found || (now - data.spawnTick > FLARE_CONFIG.flightTimeout)) {
-            try {
-                const cleanDim = world.getDimension(data.dimName || "overworld");
-                removeSingleLight(cleanDim, data.lightPos);
-            } catch (e) {}
+            queueLightRemoval(data.dimName || "overworld", data.lightPos);
             flightFlares.delete(id);
         }
     }
@@ -883,13 +986,10 @@ function updateLandedFlares(now) {
         try {
             const dim = world.getDimension(data.dimId);
             const age = now - data.landTick;
-            let maxDuration = data.inWater ? FLARE_CONFIG.duration.water : FLARE_CONFIG.duration.land;
-            if (data.halfDuration) maxDuration = Math.floor(maxDuration / 2);
+            const maxDuration = flareDuracaoMaxima(data);
 
-            // Fumaca
             spawnSmokeEffects(dim, data.loc);
 
-            // Chama no chao (menos frequente)
             if (now % 6 < 2) {
                 try {
                     dim.spawnParticle(FLARE_CONFIG.effects.trail.particle, {
@@ -898,13 +998,10 @@ function updateLandedFlares(now) {
                 } catch (e) {}
             }
 
-            // Expirou?
             if (age > maxDuration) {
-                const removed = removeSingleLight(dim, data.lightPos);
-                if (removed || age > maxDuration + 1200) {
-                    landedFlares.delete(key);
-                    salvarLandedFlares();
-                }
+                queueLightRemoval(data.dimId, data.lightPos);
+                landedFlares.delete(key);
+                salvarLandedFlares();
             }
         } catch (e) {}
     }
@@ -919,7 +1016,6 @@ system.runInterval(() => {
         landedFlaresLoaded = true;
     }
 
-    // Coletar entidades vivas + auto-registrar
     const allDimNames = ["overworld", "nether", "the_end"];
     const flareEntitiesMap = new Map();
     for (const dn of allDimNames) {
@@ -943,24 +1039,19 @@ system.runInterval(() => {
 
     updateFlightFlares(now, flareEntitiesMap);
     updateLandedFlares(now);
+    processPendingLightRemovals();
 }, 2);
 
-// ████████████████████████████████████████████████████████████████
-// ██  PISTOLA SINALIZADORA - FLARE GUN - FIM DO BLOCO          ██
-// ████████████████████████████████████████████████████████████████
-
 // ============================================================
-// Espada de Fogo - Fire Sword  [COMENTADO PARA TESTE]
+// Espada de Fogo
 // ============================================================
-/*
 
 const FIRE_SWORD_ID = "escavadora:espada_de_fogo";
 const FIRE_SWORD_LIGHT_LEVEL = 15;
-const FIRE_SWORD_FIRE_DURATION = 10; // segundos que o mob queima
-const FIRE_SWORD_EXTRA_DAMAGE = 4;   // dano de fogo extra no hit
-const FIRE_SWORD_TREE_FIRE_CHANCE = 0.3; // 30% chance
+const FIRE_SWORD_FIRE_DURATION = 10;
+const FIRE_SWORD_EXTRA_DAMAGE = 4;
+const FIRE_SWORD_TREE_FIRE_CHANCE = 0.3;
 
-// Rastreamento por jogador: playerId -> { lights: {x,y,z}[], lastPos: {x,y,z} }
 const fireSwordPlayers = new Map();
 
 function isHoldingFireSword(player) {
@@ -1003,8 +1094,6 @@ function placeFireSwordLight(dimension, playerLoc) {
     const cy = Math.floor(playerLoc.y);
     const cz = Math.floor(playerLoc.z);
 
-    // Coloca light_block(15) na posicao do jogador (cabeca)
-    // Propagacao natural ilumina ~15 blocos ao redor
     try {
         const block = dimension.getBlock({ x: cx, y: cy + 1, z: cz });
         if (block && block.typeId === "minecraft:air") {
@@ -1018,7 +1107,6 @@ function placeFireSwordLight(dimension, playerLoc) {
     return placedLights;
 }
 
-// --- Loop principal: particulas + iluminacao ---
 system.runInterval(() => {
     const players = world.getAllPlayers();
 
@@ -1030,10 +1118,8 @@ system.runInterval(() => {
             const loc = player.location;
             const dim = player.dimension;
 
-            // Chamas proximas da espada (mao direita, altura do braco)
             try {
                 const viewDir = player.getViewDirection();
-                // Offset para o lado direito do jogador (perpendicular a direcao de visao)
                 const rightX = -viewDir.z * 0.3;
                 const rightZ = viewDir.x * 0.3;
                 for (let i = 0; i < 3; i++) {
@@ -1044,7 +1130,6 @@ system.runInterval(() => {
                     });
                 }
 
-                // Fumaca: comeca 2 blocos acima do jogador, 2 blocos de altura
                 for (let s = 0; s < 3; s++) {
                     dim.spawnParticle("minecraft:campfire_tall_smoke_particle", {
                         x: loc.x + (Math.random() - 0.5) * 0.3,
@@ -1054,24 +1139,20 @@ system.runInterval(() => {
                 }
             } catch (e) {}
 
-            // Gerenciamento de light blocks
             const data = fireSwordPlayers.get(playerId);
 
             if (!data) {
-                // Primeira vez segurando: coloca luz
                 const lights = placeFireSwordLight(dim, loc);
                 fireSwordPlayers.set(playerId, {
                     lights: lights,
                     lastPos: { x: Math.floor(loc.x), y: Math.floor(loc.y), z: Math.floor(loc.z) }
                 });
             } else {
-                // Ja rastreando: verifica se moveu de bloco
                 const newX = Math.floor(loc.x);
                 const newY = Math.floor(loc.y);
                 const newZ = Math.floor(loc.z);
 
                 if (newX !== data.lastPos.x || newY !== data.lastPos.y || newZ !== data.lastPos.z) {
-                    // Moveu: remove luzes antigas, coloca novas
                     try {
                         removeSwordLights(dim, data.lights);
                     } catch (e) {}
@@ -1082,7 +1163,6 @@ system.runInterval(() => {
                 }
             }
         } else {
-            // Nao esta segurando: limpa se estava rastreando
             const data = fireSwordPlayers.get(playerId);
             if (data) {
                 try {
@@ -1094,7 +1174,6 @@ system.runInterval(() => {
     }
 }, 4);
 
-// --- Cleanup quando jogador desconecta ---
 world.afterEvents.playerLeave.subscribe((event) => {
     const playerId = event.playerId;
     const data = fireSwordPlayers.get(playerId);
@@ -1110,7 +1189,6 @@ world.afterEvents.playerLeave.subscribe((event) => {
     }
 });
 
-// --- Hit em Mob: dano de fogo + queima ---
 world.afterEvents.entityHitEntity.subscribe((event) => {
     try {
         const attacker = event.damagingEntity;
@@ -1119,17 +1197,14 @@ world.afterEvents.entityHitEntity.subscribe((event) => {
         if (attacker.typeId !== "minecraft:player") return;
         if (!isHoldingFireSword(attacker)) return;
 
-        // Dano extra de fogo (soma ao dano base 8 do item)
         try {
             target.applyDamage(FIRE_SWORD_EXTRA_DAMAGE, { cause: "fire" });
         } catch (e) {}
 
-        // Pega fogo por 10 segundos
         try {
             target.setOnFire(FIRE_SWORD_FIRE_DURATION, true);
         } catch (e) {}
 
-        // Particulas de chama no impacto
         try {
             const dim = target.dimension;
             const tloc = target.location;
@@ -1151,7 +1226,6 @@ world.afterEvents.entityHitEntity.subscribe((event) => {
     } catch (e) {}
 });
 
-// --- Hit em Arvore: 30% chance de incendiar ---
 world.afterEvents.entityHitBlock.subscribe((event) => {
     try {
         const attacker = event.damagingEntity;
@@ -1165,10 +1239,8 @@ world.afterEvents.entityHitBlock.subscribe((event) => {
         const blockId = block.typeId;
         if (!isTreeBlock(blockId)) return;
 
-        // 30% de chance
         if (Math.random() >= FIRE_SWORD_TREE_FIRE_CHANCE) return;
 
-        // Coloca fogo acima do bloco
         const dim = block.dimension;
         const loc = block.location;
 
@@ -1179,7 +1251,6 @@ world.afterEvents.entityHitBlock.subscribe((event) => {
             }
         } catch (e) {}
 
-        // Particulas visuais
         try {
             for (let i = 0; i < 5; i++) {
                 dim.spawnParticle("minecraft:basic_flame_particle", {
@@ -1191,5 +1262,3 @@ world.afterEvents.entityHitBlock.subscribe((event) => {
         } catch (e) {}
     } catch (e) {}
 });
-
-*/

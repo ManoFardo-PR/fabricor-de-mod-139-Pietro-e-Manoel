@@ -1,0 +1,23 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_shaped": {
+        "description": {
+            "identifier": "flechas_especiais:arco_especial_recipe"
+        },
+        "tags": ["crafting_table"],
+        "pattern": [
+            " R ",
+            "RBR",
+            " D "
+        ],
+        "key": {
+            "B": { "item": "minecraft:bow" },
+            "R": { "item": "minecraft:redstone" },
+            "D": { "item": "minecraft:diamond" }
+        },
+        "result": {
+            "item": "flechas_especiais:arco_especial",
+            "count": 1
+        }
+    }
+}

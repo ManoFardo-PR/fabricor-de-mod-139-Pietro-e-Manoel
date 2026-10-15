@@ -11,7 +11,7 @@ A Pistola Sinalizadora dispara um projetil luminoso que utiliza uma **arquitetur
 - **Movimento**: Controlado nativamente pelo Minecraft (fisica, gravidade, colisoes).
 - **Iluminacao e Logica**: Controlados por script atraves de snapshots discretos (por bloco).
 
-O projetil quica ate 2 vezes antes de pousar. Durante o voo, deixa um rastro de faiscas e ilumina dinamicamente o ambiente. Ao pousar, cria uma esfera de luz com raio de 7 blocos e uma coluna de fumaca, podendo incendiar blocos e entidades proximas.
+A pistola e uma **arma reutilizavel com durabilidade** (64 disparos, reparavel com redstone): cada clique direito dispara um sinalizador via script (`itemUse` + `minecraft:projectile.shoot`), sem consumir a pistola. O projetil quica 1 vez antes de pousar. Durante o voo, deixa um rastro de faiscas e ilumina dinamicamente o ambiente. Ao pousar, coloca um unico `minecraft:light_block` (nivel 14) no ponto de pouso e uma coluna de fumaca, podendo incendiar blocos e entidades proximas.
 
 O sistema envolve:
 - 1 item (a pistola)
@@ -30,10 +30,10 @@ O sistema envolve:
 |-------------|-------|
 | Identificador do item | `escavadora:pistola_sinalizadora` |
 | Identificador da entidade projetil | `escavadora:sinalizador_projetil` |
-| Categoria no menu | Items > Arrow |
-| Stack maximo | 16 |
-| Forca de lancamento | 1.0 (menor que TNT/Bomba que usam 1.2) |
-| Animacao ao arremessar | Sim |
+| Categoria no menu | Equipment > Sword |
+| Stack maximo | 1 |
+| Durabilidade | 64 disparos (reparavel com redstone, +16 por unidade) |
+| Velocidade do disparo | 1.2 blocos/tick (`FLARE_CONFIG.gun.power`) |
 | Textura do item | `textures/items/pistola_sinalizadora` |
 | Nome pt_BR | "Pistola Sinalizadora" |
 | Nome en_US | "Flare Gun" |
@@ -51,19 +51,23 @@ O sistema envolve:
         "description": {
             "identifier": "escavadora:pistola_sinalizadora",
             "menu_category": {
-                "category": "items",
-                "group": "itemGroup.name.arrow"
+                "category": "equipment",
+                "group": "itemGroup.name.sword"
             }
         },
         "components": {
-            "minecraft:max_stack_size": 16,
-            "minecraft:throwable": {
-                "do_swing_animation": true,
-                "launch_power_scale": 1.0,
-                "max_launch_power": 1.0
+            "minecraft:max_stack_size": 1,
+            "minecraft:hand_equipped": true,
+            "minecraft:durability": {
+                "max_durability": 64
             },
-            "minecraft:projectile": {
-                "projectile_entity": "escavadora:sinalizador_projetil"
+            "minecraft:repairable": {
+                "repair_items": [
+                    {
+                        "items": ["minecraft:redstone"],
+                        "repair_amount": 16
+                    }
+                ]
             },
             "minecraft:icon": {
                 "textures": {
@@ -78,7 +82,7 @@ O sistema envolve:
 }
 ```
 
-> **Nota:** `launch_power_scale` e 1.0 (nao 1.2 como TNT/Bomba), resultando em trajetoria mais lenta e arco mais pronunciado.
+> **Nota:** o item nao usa `minecraft:throwable`. O disparo e feito pelo script no evento `world.afterEvents.itemUse`: o sinalizador nasce 0.8 bloco a frente da cabeca do jogador, recebe `owner = jogador` (nao acerta quem atirou) e e lancado com `shoot()` na direcao da mira. Cada disparo consome 1 de durabilidade.
 
 ---
 
